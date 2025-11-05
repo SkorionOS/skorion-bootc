@@ -27,6 +27,15 @@ jobs:
       matrix:
         variant: [kde, gnome, hyprland]
     steps:
+      - name: Check if variant should be built
+        id: check
+        run: |
+          VARIANTS="${{ github.event.inputs.variants || 'all' }}"
+          if [ "$VARIANTS" = "all" ] || echo "$VARIANTS" | grep -q "${{ matrix.variant }}"; then
+            echo "build=true" >> $GITHUB_OUTPUT
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+          fi      
       - name: Free Disk Space
         uses: endersonmenezes/free-disk-space@v3  # Use @main for latest, @v3 for stable
         with:
@@ -41,16 +50,6 @@ jobs:
           rm_cmd: "rmz"  # Use 'rmz' for faster deletion (default: 'rm')
           rmz_version: "3.1.1"  # Required when rm_cmd is 'rmz'
           testing: false
-      - name: Check if variant should be built
-        id: check
-        run: |
-          VARIANTS="${{ github.event.inputs.variants || 'all' }}"
-          if [ "$VARIANTS" = "all" ] || echo "$VARIANTS" | grep -q "${{ matrix.variant }}"; then
-            echo "build=true" >> $GITHUB_OUTPUT
-          else
-            echo "build=false" >> $GITHUB_OUTPUT
-          fi
-      
       - name: Setup podman
         if: steps.check.outputs.build == 'true'
         run: |

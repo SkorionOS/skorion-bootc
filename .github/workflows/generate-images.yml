@@ -49,14 +49,15 @@ jobs:
         run: |
           mkdir -p output
           # Pull the image
-          podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}-latest
+          sudo podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}-latest
           # Export as tar archive
-          podman save -o output/skorionos-${{ matrix.variant }}.tar \
+          sudo podman save -o output/skorionos-${{ matrix.variant }}.tar \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}-latest
       
       - name: Compress and generate checksum
         if: steps.check.outputs.build == 'true'
         run: |
+          sudo chown -R $USER:$USER output/
           cd output
           # Compress with zstd
           zstd -19 skorionos-${{ matrix.variant }}.tar -o skorionos-${{ matrix.variant }}.tar.zst

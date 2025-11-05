@@ -1,81 +1,148 @@
 # SkorionOS Bootc - KDE Plasma Variant
-# Gaming-focused KDE experience similar to Steam Deck
+# Optimized layering based on ChimeraOS frzr KDE configuration
 
 FROM skorionos:base-latest AS kde
 
 LABEL org.opencontainers.image.title="SkorionOS KDE"
 LABEL org.opencontainers.image.description="KDE Plasma variant for SkorionOS Bootc"
+LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-bootc"
 
-# Install KDE Plasma and essential applications
-RUN sudo pacman -S --noconfirm --needed \
-    # Core Plasma
+# Switch back to root for package installation
+USER root
+
+# ==============================================================================
+# Layer 1: Core Plasma Desktop (stable, rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     plasma-desktop \
-    plasma-workspace \
     plasma-nm \
     plasma-pa \
-    plasma-systemmonitor \
-    bluedevil \
-    powerdevil \
-    kscreen \
-    kde-gtk-config \
     breeze-gtk \
-    # KDE Applications
+    kde-gtk-config \
+    kdeplasma-addons \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 2: System integration (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    bluedevil \
+    kscreen \
+    plasma-systemmonitor \
+    plasma-thunderbolt \
+    plasma-disks \
+    plasma-vault \
+    plasma-browser-integration \
+    xdg-desktop-portal-kde \
+    xdg-desktop-portal-gtk \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 3: KDE applications (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     dolphin \
+    dolphin-plugins \
     konsole \
     kate \
     ark \
-    spectacle \
     gwenview \
-    okular \
-    kcalc \
-    # System settings modules
-    systemsettings \
+    spectacle \
+    kfind \
     kinfocenter \
-    # Display manager
-    sddm \
-    # Wayland session
-    plasma-wayland-session \
-    kwayland-integration \
-    qt6-wayland \
-    # Gamescope (will be from AUR/local packages)
-    # Additional utilities
-    packagekit-qt6 \
-    firefox \
-    && sudo pacman -Scc --noconfirm
+    && pacman -Scc --noconfirm
 
-# Install gaming-specific packages
-RUN sudo pacman -S --noconfirm --needed \
-    gamescope \
-    && sudo pacman -Scc --noconfirm || echo "Gamescope not in official repos, will use AUR"
+# ==============================================================================
+# Layer 4: Advanced KDE utilities (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    partitionmanager \
+    kdeconnect \
+    krdc \
+    krdp \
+    kgamma \
+    && pacman -Scc --noconfirm
 
-# Copy KDE-specific configurations
-COPY config/sddm/ /etc/sddm.conf.d/
-COPY config/plasma/ /etc/xdg/
+# ==============================================================================
+# Layer 5: Security and authentication (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    kwallet-pam \
+    kwalletmanager \
+    ksshaskpass \
+    && pacman -Scc --noconfirm
 
-# Enable SDDM
-RUN sudo systemctl enable sddm
+# ==============================================================================
+# Layer 6: Package management (updates regularly)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    discover \
+    flatpak-kcm \
+    && pacman -Scc --noconfirm
 
-# Configure autologin for gamer user (gaming mode)
-RUN sudo mkdir -p /etc/sddm.conf.d && \
-    echo "[Autologin]" | sudo tee /etc/sddm.conf.d/autologin.conf && \
-    echo "User=gamer" | sudo tee -a /etc/sddm.conf.d/autologin.conf && \
-    echo "Session=plasma" | sudo tee -a /etc/sddm.conf.d/autologin.conf
+# ==============================================================================
+# Layer 7: Multimedia and Wayland (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    kpipewire \
+    python-notify2 \
+    && pacman -Scc --noconfirm
 
-# Steam Deck-like theme configurations
-RUN sudo mkdir -p /etc/xdg/kde-mimeapps.list && \
-    sudo mkdir -p /home/gamer/.config
+# ==============================================================================
+# Layer 8: Input method - fcitx5 (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    fcitx5-im \
+    fcitx5-chinese-addons \
+    && pacman -Scc --noconfirm
 
-# Set default applications
-RUN echo "[Default Applications]" | sudo tee /etc/xdg/kde-mimeapps.list && \
-    echo "x-scheme-handler/http=firefox.desktop" | sudo tee -a /etc/xdg/kde-mimeapps.list && \
-    echo "x-scheme-handler/https=firefox.desktop" | sudo tee -a /etc/xdg/kde-mimeapps.list
+# ==============================================================================
+# Layer 9: Web browser (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    falkon \
+    && pacman -Scc --noconfirm
 
-# Clean up
-RUN sudo pacman -Scc --noconfirm && \
-    sudo rm -rf /var/cache/pacman/pkg/* && \
-    sudo rm -rf /tmp/* && \
-    sudo rm -rf /var/tmp/*
+# ==============================================================================
+# Layer 10: Accessibility - on-screen keyboard (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    onboard \
+    && pacman -Scc --noconfirm
 
+# ==============================================================================
+# Layer 11: Wallpapers (rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    deepin-wallpapers \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 12: KDE-specific AUR and local packages (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    plasma6-themes-vapor-steamos \
+    steamdeck-kde-presets-simple \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 13: Copy KDE-specific configurations (changes most frequently)
+# ==============================================================================
+COPY config/plasma/etc/xdg/ /etc/xdg/
+COPY config/plasma/usr/ /usr/
+COPY config/skel/ /etc/skel/
+COPY config/wallpapers/wallpapers/usr/share/wallpapers/ /usr/share/wallpapers/
+
+# ==============================================================================
+# Layer 14: Final cleanup
+# ==============================================================================
+RUN pacman -Scc --noconfirm && \
+    rm -rf /var/cache/pacman/pkg/* && \
+    rm -rf /tmp/* && \
+    rm -rf /var/tmp/*
+
+# ==============================================================================
+# Final stage
+# ==============================================================================
 WORKDIR /home/gamer
 USER gamer
-

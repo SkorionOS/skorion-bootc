@@ -1,7 +1,8 @@
 # SkorionOS Bootc - Base System
-# This builds the base system layer that all variants extend from
+# Optimized layering based on ChimeraOS frzr manifest
+# Packages ordered by update frequency: stable first, frequently updated last
 
-FROM docker.io/library/archlinux:latest AS base
+FROM ghcr.io/archlinux/archlinux:latest AS base
 
 # Metadata
 LABEL org.opencontainers.image.title="SkorionOS Base"
@@ -14,180 +15,521 @@ ENV USERNAME="gamer"
 ENV USER_UID="1000"
 ENV USER_GID="1000"
 
-# Initialize keyring and update system
+# Copy manifest and build functions for build-time configuration
+COPY manifest /tmp/manifest
+COPY scripts/build-functions.sh /tmp/build-functions.sh
+
+# ==============================================================================
+# Layer 1: System initialization (rarely changes)
+# ==============================================================================
 RUN pacman-key --init && \
     pacman-key --populate archlinux && \
-    pacman -Syu --noconfirm
+    pacman -Syu --noconfirm && \
+    # Disable mkinitcpio during build for efficiency \
+    source /tmp/build-functions.sh && disable_mkinitcpio
 
-# Install base system packages
+# ==============================================================================
+# Layer 2: Add SkorionOS custom package repository FIRST (highest priority)
+# ==============================================================================
+RUN sed -i '/^\[core\]/i [skorion]\nSigLevel = Optional TrustAll\nServer = https://github.com/SkorionOS/skorion-packages/releases/download/latest\n' /etc/pacman.conf && \
+    pacman -Sy --noconfirm
+
+# ==============================================================================
+# Layer 3: Enable multilib repository (rarely changes)
+# ==============================================================================
+RUN echo "" >> /etc/pacman.conf && \
+    echo "[multilib]" >> /etc/pacman.conf && \
+    echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf && \
+    pacman -Sy --noconfirm
+
+# ==============================================================================
+# Layer 4: Install package overrides (kernel + pinned versions)
+# ==============================================================================
+RUN source /tmp/manifest && \
+    cd /tmp && \
+    for url in $PACKAGE_OVERRIDES; do \
+        curl -LO "$url"; \
+    done && \
+    pacman --noconfirm -U /tmp/*.pkg.tar.zst && \
+    rm /tmp/*.pkg.tar.zst
+
+# ==============================================================================
+# Layer 5: Graphics drivers - Mesa and Vulkan (updates regularly)
+# ==============================================================================
 RUN pacman -S --noconfirm --needed \
-    # Base system
-    base-devel \
-    sudo \
-    systemd \
-    systemd-sysvcompat \
-    dbus \
-    # Bootloader and boot tools
-    efibootmgr \
-    # Network
-    networkmanager \
-    openssh \
-    # Filesystem tools
-    btrfs-progs \
-    f2fs-tools \
-    exfatprogs \
-    ntfs-3g \
-    dosfstools \
-    # Compression
-    zstd \
-    lz4 \
-    xz \
-    # Hardware support
+    lib32-mesa \
+    lib32-opencl-mesa \
+    lib32-vulkan-intel \
+    lib32-vulkan-mesa-layers \
+    lib32-vulkan-nouveau \
+    lib32-vulkan-radeon \
+    lib32-vulkan-swrast \
+    lib32-vulkan-virtio \
+    mesa \
+    mesa-docs \
+    mesa-demos \
+    opencl-mesa \
+    vulkan-intel \
+    vulkan-mesa-layers \
+    vulkan-nouveau \
+    vulkan-radeon \
+    vulkan-swrast \
+    vulkan-virtio \
+    vulkan-icd-loader \
+    lib32-vulkan-icd-loader \
+    xf86-video-amdgpu \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 6: Firmware and microcode (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     linux-firmware \
     intel-ucode \
     amd-ucode \
-    # Audio
+    sof-firmware \
+    alsa-firmware \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 7: Hardware acceleration (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    intel-media-driver \
+    libva \
+    lib32-libva \
+    libva-intel-driver \
+    lib32-libva-intel-driver \
+    intel-gpu-tools \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 8: Audio system (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     pipewire \
     pipewire-alsa \
-    pipewire-pulse \
     pipewire-jack \
+    pipewire-pulse \
+    lib32-pipewire \
     wireplumber \
-    # Graphics base (Mesa)
-    mesa \
-    lib32-mesa \
-    vulkan-icd-loader \
-    lib32-vulkan-icd-loader \
-    vulkan-mesa-layers \
-    lib32-vulkan-mesa-layers \
-    # Intel graphics
-    vulkan-intel \
-    lib32-vulkan-intel \
-    intel-media-driver \
-    # AMD graphics
-    vulkan-radeon \
-    lib32-vulkan-radeon \
-    # Container runtime
-    podman \
-    distrobox \
-    # Utilities
+    alsa-utils \
+    pulsemixer \
+    gst-plugin-pipewire \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 9: Network and connectivity (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    networkmanager \
+    modemmanager \
+    nss-mdns \
+    openssh \
+    bluez \
+    bluez-utils \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 10: Display servers (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    xorg-server \
+    xorg-xinit \
+    xorg-server-xvfb \
+    cage \
+    sddm \
+    xdg-desktop-portal \
+    xdg-desktop-portal-wlr \
+    wlr-randr \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 11: Core system utilities (very stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    sudo \
     vim \
     nano \
-    htop \
-    btop \
-    git \
+    bash-completion \
+    which \
+    less \
+    file \
+    tree \
     wget \
-    curl \
     rsync \
+    git \
+    git-lfs \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 12: Filesystem tools (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    efibootmgr \
+    f2fs-tools \
+    exfatprogs \
+    ntfs-3g \
+    cifs-utils \
+    smbclient \
+    nfs-utils \
+    sshfs \
+    gvfs-smb \
+    gvfs-nfs \
+    gvfs-dnssd \
+    fuse2 \
+    fuse-zip \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 13: Compression tools (very stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    bzip2 \
+    gzip \
+    lzip \
+    lrzip \
+    xz \
+    tar \
+    zip \
     unzip \
+    unace \
+    unrar \
     p7zip \
     && pacman -Scc --noconfirm
 
-# Install SkorionOS-specific base packages
+# ==============================================================================
+# Layer 14: 32-bit gaming libraries (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    lib32-curl \
+    lib32-fontconfig \
+    lib32-freetype2 \
+    lib32-libgpg-error \
+    lib32-libnm \
+    lib32-libxinerama \
+    lib32-libxcrypt-compat \
+    lib32-openal \
+    lib32-systemd \
+    libcurl-gnutls \
+    libxcrypt-compat \
+    libxss \
+    openal \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 15: Gaming core (updates regularly)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    steam \
+    lib32-mangohud \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 16: Container runtime (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    podman \
+    podman-compose \
+    podman-docker \
+    distrobox \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 17: System services and hardware management (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    accountsservice \
+    fwupd \
+    logrotate \
+    plymouth \
+    haveged \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 18: Hardware tools (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    dmidecode \
+    evtest \
+    lshw \
+    usbutils \
+    usb_modeswitch \
+    smartmontools \
+    ddcutil \
+    libcec \
+    libdisplay-info \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 19: Performance and power management (updates regularly)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    cpupower \
+    intel-undervolt \
+    liquidctl \
+    scx-scheds \
+    switcheroo-control \
+    acpi_call-dkms \
+    dkms \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 20: Development tools (changes occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    cmake \
+    patch \
+    diffutils \
+    fakeroot \
+    python \
+    python-pyudev \
+    python-systemd \
+    shfmt \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 21: Input methods (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    ibus-libpinyin \
+    ibus-table-chinese \
+    ibus-anthy \
+    ibus-hangul \
+    ibus-rime \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 22: Fonts (rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    ttf-dejavu \
+    ttf-liberation \
+    noto-fonts-emoji \
+    wqy-microhei \
+    otf-fira-mono \
+    otf-fira-sans \
+    otf-font-awesome \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 23: Multimedia (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    ffmpeg \
+    ffmpegthumbnailer \
+    mpv \
+    poppler \
+    imagemagick \
+    wavpack \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 24: System monitoring tools (changes frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    htop \
+    btop \
+    nmon \
+    s-tui \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 25: Modern CLI utilities (changes frequently)
+# ==============================================================================
 RUN pacman -S --noconfirm --needed \
     aria2 \
     bat \
-    bluez-utils \
-    cmake \
-    ddcutil \
-    expect \
     fastfetch \
     fd \
     fzf \
-    gparted \
-    haveged \
-    jq \
-    libva \
-    lib32-libva \
-    lzip \
-    nmon \
-    patch \
-    plymouth \
-    python-pyudev \
-    python-systemd \
     ripgrep \
-    screen \
-    smartmontools \
-    switcheroo-control \
-    s-tui \
-    ttf-dejavu \
-    wlr-randr \
-    xdelta3 \
     zoxide \
-    zsh \
+    jq \
+    expect \
+    screen \
+    xdelta3 \
     && pacman -Scc --noconfirm
 
-# Install gaming-related packages
+# ==============================================================================
+# Layer 26: GUI applications (updates regularly)
+# ==============================================================================
 RUN pacman -S --noconfirm --needed \
-    steam \
-    mangohud \
-    lib32-mangohud \
-    gamemode \
-    lib32-gamemode \
-    gst-plugin-pipewire \
-    lib32-pipewire \
-    lib32-systemd \
+    antimicrox \
+    flatpak \
+    gparted \
+    freerdp \
+    remmina \
+    solaar \
+    yazi \
     && pacman -Scc --noconfirm
 
-# Create gamer user
-RUN useradd -m -u ${USER_UID} -G wheel,audio,video,input,storage,network ${USERNAME} && \
-    echo "${USERNAME}:${USERNAME}" | chpasswd && \
-    echo "%wheel ALL=(ALL:ALL) ALL" >> /etc/sudoers && \
-    echo "Defaults !secure_path" >> /etc/sudoers
+# ==============================================================================
+# Layer 27: Optional third-party tools (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    lact-libadwaita \
+    mission-center \
+    openrgb \
+    v2ray \
+    tailscale \
+    firejail \
+    && pacman -Scc --noconfirm
 
-# Configure systemd services
-RUN systemctl enable NetworkManager && \
-    systemctl enable sshd && \
-    systemctl enable bluetooth && \
-    systemctl enable haveged && \
-    systemctl enable systemd-timesyncd && \
-    systemctl enable fstrim.timer
+# ==============================================================================
+# Layer 28: Additional tools (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    kitty-terminfo \
+    zsh \
+    fmt \
+    && pacman -Scc --noconfirm
 
-# Copy rootfs overlay
+# ==============================================================================
+# Layer 29: Install AUR and local packages from skorion repository (updates frequently)
+# ==============================================================================
+RUN source /tmp/build-functions.sh && \
+    remove_conflicting_packages && \
+    pacman -S --noconfirm --needed --overwrite '*' \
+    aic8800d80-dkms \
+    ayaneo-platform-dkms-git \
+    chimeraos-device-quirks-sk \
+    clipboard-sync \
+    davfs2 \
+    downgrade \
+    evdev-keepalive \
+    frzr-sk \
+    gamescope-sk \
+    gamescope-session-sk-git \
+    gamescope-session-steam-sk-git \
+    gamescope-session-steam-plus-git \
+    gpdconfig-git \
+    hhd \
+    hhd-ui \
+    hhfc-git \
+    inputplumber-bin \
+    lib32-extest \
+    linux-firmware-valve \
+    mangohud-git \
+    moonlight-qt-axi \
+    nbfc-linux \
+    networkd-dispatcher \
+    nintendo-udev \
+    noto-fonts-cjk-fontconfig \
+    onedrive-abraunegg \
+    pikaur \
+    powerstation-git \
+    protonplus \
+    protontricks \
+    refind-r \
+    rtl8812au-dkms-git \
+    rtl8814au-dkms-git \
+    rtl8821au-dkms-git \
+    rtl88x2bu-dkms-git \
+    ryzenadj-git \
+    ryzen_smu-dkms-git \
+    sk-boot-to-windows \
+    sk-chos-tool \
+    skorionos-fastfetch-logo \
+    steam-launch-manager \
+    steam-removable-media-git \
+    steam_notif_daemon \
+    steamos-manager \
+    steamos-powerbuttond \
+    sx \
+    tsukimi-bin \
+    v4l-utils-git \
+    vboard \
+    waydroid-script-git \
+    xonedo-dkms \
+    xonedo-firmware \
+    yay-git \
+    zenergy-dkms-git \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 30: Create user and groups
+# ==============================================================================
+RUN source /tmp/build-functions.sh && setup_user
+
+# ==============================================================================
+# Layer 31: Copy rootfs overlay (changes most frequently)
+# ==============================================================================
+# Note: Comment out if rootfs/ directory doesn't exist yet
 COPY rootfs/ /
 
-# Set locale
-RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
-    echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen && \
-    locale-gen && \
-    echo "LANG=en_US.UTF-8" > /etc/locale.conf
+# ==============================================================================
+# Layer 32: Enable system services
+# ==============================================================================
+RUN systemctl enable \
+        NetworkManager \
+        avahi-daemon \
+        bluetooth \
+        bluetooth-workaround \
+        fstrim.timer \
+        haveged \
+        sddm \
+        sshd \
+        swapfile \
+        systemd-timesyncd \
+        networkd-dispatcher \
+        inputplumber \
+        powerstation \
+        steamos-manager \
+        scx_loader \
+        sk-chos-daemon \
+        sk-chos-tool-autoupdate.timer
 
-# Set timezone
-RUN ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+# ==============================================================================
+# Layer 33: Enable user services
+# ==============================================================================
+RUN systemctl --global enable \
+        pipewire \
+        podman \
+        sk-chos-user-daemon \
+        sk-first-setup-daemon \
+        sk-audio-setup \
+        steamosctl-sleep \
+        monitor-waydroid
 
-# Configure hostname
-RUN echo "skorionos" > /etc/hostname && \
-    echo "127.0.0.1 localhost" >> /etc/hosts && \
-    echo "::1 localhost" >> /etc/hosts && \
-    echo "127.0.1.1 skorionos.localdomain skorionos" >> /etc/hosts
+# ==============================================================================
+# Layer 34: SDDM configuration for gaming session (changes occasionally)
+# ==============================================================================
+RUN source /tmp/build-functions.sh && setup_sddm
 
-# SSH configuration
-RUN sed -i "s/#PasswordAuthentication yes/PasswordAuthentication yes/" /etc/ssh/sshd_config && \
-    sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config
+# ==============================================================================
+# Layer 35: System configuration (changes frequently)
+# ==============================================================================
+RUN source /tmp/build-functions.sh && \
+    setup_system_basics && \
+    setup_ssh && \
+    setup_user_environment && \
+    setup_release_info
 
-# Podman configuration
-RUN echo "unqualified-search-registries = ['docker.io']" >> /etc/containers/registries.conf
+# ==============================================================================
+# Layer 36: System tweaks from frzr (changes frequently)
+# ==============================================================================
+RUN source /tmp/build-functions.sh && apply_system_tweaks
 
-# Configure suspend settings
-RUN sed -i "s/#SuspendEstimationSec=60min/SuspendEstimationSec=30min/" /etc/systemd/sleep.conf
+# ==============================================================================
+# Layer 37: Final cleanup (always last)
+# ==============================================================================
+RUN source /tmp/build-functions.sh && \
+    restore_and_run_mkinitcpio && \
+    cleanup_system
 
-# Clean up
-RUN pacman -Scc --noconfirm && \
-    rm -rf /var/cache/pacman/pkg/* && \
-    rm -rf /tmp/* && \
-    rm -rf /var/tmp/*
-
-# Set default shell to zsh for gamer user
-RUN chsh -s /usr/bin/zsh ${USERNAME}
-
+# ==============================================================================
 # Test stage for CI
+# ==============================================================================
 FROM base AS test
 RUN echo "Running tests..." && \
     pacman -Q | grep -E "(steam|mesa|pipewire)" && \
     id ${USERNAME} && \
     systemctl list-unit-files | grep -E "(NetworkManager|sshd|bluetooth)"
 
+# ==============================================================================
 # Final stage
+# ==============================================================================
 FROM base
 WORKDIR /home/${USERNAME}
 USER ${USERNAME}
-

@@ -1,0 +1,342 @@
+#! /bin/bash
+
+export VERSION="53-3"
+export SYSTEM_DESC="SkorionOS"
+export SYSTEM_NAME="skorionos"
+export USERNAME="gamer"
+export SIZE="40000MB"
+export ARCHIVE_DATE="2025/11/02"
+export WEBSITE="https://github.com/SkorionOS/skorionos"
+export DOCUMENTATION_URL="https://github.com/SkorionOS/skorionos"
+export BUG_REPORT_URL="https://github.com/SkorionOS/skorionos/issues"
+
+export KERNEL_PACKAGE="linux-skchos"
+export KERNEL_PACKAGE_ORIGIN="local"
+
+MESA_PACKAGE="\
+	lib32-mesa \
+	lib32-opencl-mesa \
+	lib32-vulkan-intel \
+	lib32-vulkan-mesa-layers \
+	lib32-vulkan-nouveau \
+	lib32-vulkan-radeon \
+	lib32-vulkan-swrast \
+	lib32-vulkan-virtio \
+	mesa \
+	mesa-docs \
+	opencl-mesa \
+	vulkan-intel \
+	vulkan-mesa-layers \
+	vulkan-nouveau \
+	vulkan-radeon \
+	vulkan-swrast \
+	vulkan-virtio \
+"
+
+export PACKAGES="\
+	$MESA_PACKAGE \
+	accountsservice \
+	acpi_call-dkms \
+	alsa-firmware \
+	alsa-utils \
+	amd-ucode \
+	bash-completion \
+	bzip2 \
+	cifs-utils \
+	cpupower \
+	diffutils \
+	dkms \
+	distrobox \
+	dmidecode \
+	efibootmgr \
+	evtest \
+	fakeroot \
+	ffmpeg \
+	file \
+	ffmpegthumbnailer \
+	firejail \
+	flatpak \
+	fmt \
+	fuse-zip \
+	fuse2 \
+	fwupd \
+	git \
+	git-lfs \
+	gst-plugin-pipewire \
+	gvfs-dnssd \
+	gvfs-smb \
+	gvfs-nfs \
+	gzip \
+	htop \
+	intel-gpu-tools \
+	intel-media-driver \
+	intel-ucode \
+	intel-undervolt \
+	kitty-terminfo \
+	less \
+	lib32-curl \
+	lib32-fontconfig \
+	lib32-freetype2 \
+	lib32-libgpg-error \
+	lib32-libnm \
+	lib32-libxinerama \
+	lib32-libxcrypt-compat \
+	lib32-mangohud \
+	lib32-openal \
+	lib32-pipewire \
+	lib32-systemd \
+	lib32-vulkan-icd-loader \
+	libcurl-gnutls \
+	libxcrypt-compat \
+	libxss \
+	linux-firmware \
+	liquidctl \
+	logrotate \
+	lrzip \
+	lshw \
+	mesa-demos \
+	modemmanager \
+	nano \
+	networkmanager \
+	nfs-utils \
+	noto-fonts-emoji \
+	nss-mdns \
+	openal \
+	openssh \
+	p7zip \
+	pipewire \
+	pipewire-alsa \
+	pipewire-jack \
+	pipewire-pulse \
+	podman \
+	pulsemixer \
+	python \
+	qtractor \
+	rsync \
+	sddm \
+	shfmt \
+	smbclient \
+	sof-firmware \
+	sshfs \
+	steam \
+	sudo \
+	tailscale \
+	tar \
+	tree \
+	ttf-liberation \
+	unace \
+	unrar \
+	unzip \
+	usb_modeswitch \
+	usbutils \
+	vim \
+	vulkan-icd-loader \
+	wavpack \
+	wget \
+	which \
+	wireplumber \
+	wqy-microhei \
+	xdg-desktop-portal \
+	xdg-desktop-portal-wlr \
+	xf86-video-amdgpu \
+	xorg-server \
+	xz \
+	zip \
+"
+
+export PACKAGE_OVERRIDES="\
+	https://github.com/SkorionOS/linux-chimeraos/releases/download/v6.17.7-1/linux-skchos-6.17.7-1-x86_64.pkg.tar.zst \
+	https://github.com/SkorionOS/linux-chimeraos/releases/download/v6.17.7-1/linux-skchos-headers-6.17.7-1-x86_64.pkg.tar.zst \
+	https://archive.archlinux.org/packages/l/lib32-libxkbcommon/lib32-libxkbcommon-1.11.0-1-x86_64.pkg.tar.zst \
+	https://archive.archlinux.org/packages/l/libxkbcommon/libxkbcommon-1.11.0-1-x86_64.pkg.tar.zst \
+	https://archive.archlinux.org/packages/l/libxkbcommon-x11/libxkbcommon-x11-1.11.0-1-x86_64.pkg.tar.zst \
+	https://steamdeck-packages.steamos.cloud/archlinux-mirror/jupiter-main/os/x86_64/ibus-pinyin-1.5.1-2.3-x86_64.pkg.tar.zst \
+"
+
+# Each entry is the clone url (https://aur.archlinux.org/{AUR_PACKAGE}.git)
+# Which is often the same as the package name but it can be different.
+# Check on the AUR webpage if you are unsure
+export AUR_PACKAGES="\
+	aic8800d80-dkms \
+	bcm20702a1-firmware \
+	chimeraos-device-quirks-sk \
+	downgrade \
+	evdev-keepalive \
+	frzr-sk \
+	gamescope-session-sk-git \
+	gamescope-session-steam-sk-git \
+	gamescope-session-steam-plus-git \
+	gamescope-sk \
+	gpdconfig-git \
+	hhd \
+	hhd-ui \
+	hhfc-git \
+	inputplumber-bin \
+	kanit-font \
+	linux-firmware-valve \
+	networkd-dispatcher \
+	nintendo-udev \
+	pikaur \
+	refind-r \
+	rtl8812au-dkms-git \
+	rtl8814au-dkms-git \
+	rtl8821au-dkms-git \
+	ryzenadj-git \
+	ryzen_smu-dkms-git \
+	sk-boot-to-windows \
+	sk-chos-tool \
+	steam_notif_daemon \
+	v4l-utils-git \
+	waydroid-script-git \
+	yay-git \
+	zenergy-dkms-git \
+"
+
+export PACKAGES_TO_DELETE="\
+	amdvlk \
+	clang \
+	jack2 \
+	lib32-amdvlk \
+	lib32-clang \
+	openvr \
+	pulseaudio \
+	pulseaudio-alsa \
+	v4l-utils \
+"
+export OWN_PACKAGES_FILE_TO_DELETE="\
+	*gamescope-3.1*.pkg.tar.zst \
+"
+
+export AUR_PACKAGES_FILE_TO_DELETE="\
+	*gamescope-session-git-r*.pkg.tar.zst \
+	*gamescope-session-steam-git-r*.pkg.tar.zst \
+	*gamescope-3.1*.pkg.tar.zst \
+"
+
+export SERVICES="\
+	NetworkManager \
+	avahi-daemon \
+	auto-expand-home \
+	bluetooth \
+	bluetooth-workaround \
+	cec-onboot \
+	cec-onpoweroff \
+	cec-onsleep \
+	fstrim.timer \
+	frzr_root-swap-swapfile.swap \
+	haveged \
+	hostname-fix \
+	inputplumber \
+	networkd-dispatcher \
+	overlay-backgrounds \
+	overlay-fonts \
+	overlay-root-home \
+	powerstation \
+	scx_loader \
+	sddm \
+	steamos-manager \
+	sshd \
+	systemd-timesyncd \
+	swapfile \
+	sk-bind-mount \
+	sk-chos-daemon \
+	sk-chos-tool-autoupdate.timer \
+	sk-setup-kernel-options \
+	sk-resume \
+"
+
+export USER_SERVICES="\
+	pipewire \
+	podman \
+	sk-chos-user-daemon \
+	sk-first-setup-daemon \
+	sk-audio-setup \
+	steamosctl-sleep \
+	monitor-waydroid \
+"
+
+export FILES_TO_DELETE="\
+	/boot/initramfs-linux-skchos-fallback.img \
+	/usr/share/SFML \
+	/usr/share/doc \
+	/usr/share/gtk-doc \
+	/usr/share/help \
+	/usr/share/man \
+	/usr/share/libalpm/hooks/70-dkms-install.hook \
+	/usr/share/libalpm/hooks/70-dkms-upgrade.hook \
+	/usr/share/libalpm/hooks/71-dkms-remove.hook \
+"
+
+postinstallhook() {
+	# Add sudo permissions
+	sed -i "s/Defaults secure_path=/# Defaults secure_path=/g" /etc/sudoers
+
+	# skorionos
+	sed -i 's/set mouse=a/set mouse-=a/g' /usr/share/vim/vim*/defaults.vim
+	ln -s -f /usr/bin/vim /usr/bin/vi
+	sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config
+	sed -i "s/#SuspendEstimationSec=60min/SuspendEstimationSec=30min/" /etc/systemd/sleep.conf
+
+	# podman
+	echo "unqualified-search-registries = ['docker.io']" >>/etc/containers/registries.conf
+
+	remove_packages=(
+		make
+		cmake
+		gcc
+		ardour
+		wine
+		)
+	for package in "${remove_packages[@]}"; do
+		pacman --noconfirm -Rnsdd "$package" || true
+	done
+
+	# clean up desktop shortcuts
+	sed -i -e 's/Name=Steam (Runtime)/Name=Steam/' /usr/share/applications/steam.desktop
+
+	sed -i 's,Exec=/usr/bin/steam-runtime,Exec=/usr/bin/skorion-steam,' /usr/share/applications/steam.desktop
+	sed -i 's,Exec=/usr/bin/steam,Exec=/usr/bin/skorion-steam,' /usr/share/applications/steam.desktop
+
+	# Waydroid
+	cp /usr/share/applications/Waydroid.desktop /usr/share/applications/Waydroid-Native.desktop
+	sed -i 's/Name=Waydroid/Name=Waydroid-Native/g' /usr/share/applications/Waydroid-Native.desktop
+	sed -i 's@Exec=waydroid first-launch@Exec=/usr/bin/waydroid-launcher\nX-Steam-Library-Capsule=/usr/share/applications/Waydroid/capsule.png\nX-Steam-Library-Hero=/usr/share/applications/Waydroid/hero.png\nX-Steam-Library-Logo=/usr/share/applications/Waydroid/logo.png\nX-Steam-Library-StoreCapsule=/usr/share/applications/Waydroid/store-logo.png\nX-Steam-Controller-Template=Desktop@g' /usr/share/applications/Waydroid.desktop
+	curl -Lo /usr/bin/waydroid-choose-gpu https://raw.githubusercontent.com/Quackdoc/waydroid-scripts/main/waydroid-choose-gpu.sh
+	chmod +x /usr/bin/waydroid-choose-gpu
+
+	# Onboard
+	if [ -f /usr/share/applications/onboard.desktop ]; then
+		sed -i 's@Exec=onboard@Exec=env GDK_BACKEND=x11 onboard@g' /usr/share/applications/onboard.desktop
+	fi
+
+	# scx-scheds
+	if [ -f /etc/default/scx ]; then
+		sed -i 's/SCX_SCHEDULER=scx_bpfland/SCX_SCHEDULER=scx_lavd/g' /etc/default/scx
+		sed -i "s/#SCX_FLAGS=.*/SCX_FLAGS='--autopower'/g" /etc/default/scx
+	fi
+
+	# if mutter-x11-scaling is installed, add 'x11-randr-fractional-scaling' to experimental-features
+	dconf_conf_path="/etc/dconf/db/local.d/00-sk-global"
+	if pacman -Q mutter-x11-scaling > /dev/null 2>&1; then
+		if [ -f "$dconf_conf_path" ] && ! grep -q "x11-randr-fractional-scaling" "$dconf_conf_path"; then
+			sed -i "s/experimental-features=\['/experimental-features=\['x11-randr-fractional-scaling','/g" "$dconf_conf_path"
+		fi
+	fi
+
+	# Disable SPDIF/IEC958 audio output to make it more likely the correct HDMI output will be selected by default
+	sed -e '/\[Mapping iec958/,+5 s/^/#/' -i '/usr/share/alsa-card-profile/mixer/profile-sets/default.conf'
+
+	# Replace wpctl with a wrapper to work around Steam resetting audio
+	mkdir -p /usr/libexec
+	if [ ! -L /usr/bin/wpctl ]; then
+		mv /usr/bin/wpctl /usr/libexec/wpctl
+		ln -sf /usr/bin/wpctl-wrapper /usr/bin/wpctl
+	fi
+
+	# skorionos-fastfetch-logo
+	if [ ! -L /usr/bin/fastfetch ]; then
+		cp /usr/bin/fastfetch /usr/bin/fastfetch.orig
+		cp /usr/bin/fastfetch /usr/libexec/fastfetch
+		ln -sf /usr/bin/fastfetch-skorionos-wrapper /usr/bin/fastfetch
+	fi
+}

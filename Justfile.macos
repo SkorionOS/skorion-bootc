@@ -1,0 +1,264 @@
+# SkorionOS Bootc Build Automation - macOS Version
+# Use 'just <recipe>' to run commands
+# This version uses Docker (OrbStack) instead of Podman
+
+# Variables
+image_name := "skorionos"
+image_tag := "latest"
+registry := "ghcr.io/skorionos"
+output_dir := "output"
+container_cmd := "docker"  # Use Docker on macOS (OrbStack)
+
+# Platform detection
+os := if os() == "macos" { "macOS" } else { "Linux" }
+
+# Default recipe - show available commands
+default:
+    @echo "SkorionOS Bootc - macOS Build System"
+    @echo "Using: {{container_cmd}} (OrbStack)"
+    @echo ""
+    @just --list
+
+# Build base system image
+build-base:
+    @echo "Building base system image..."
+    @echo "Platform: {{os}}"
+    {{container_cmd}} build \
+        -f Containerfile.base \
+        -t {{image_name}}:base-{{image_tag}} \
+        --platform linux/amd64 \
+        .
+
+# Build KDE variant
+build-kde: build-base
+    @echo "Building KDE variant..."
+    {{container_cmd}} build \
+        -f Containerfile.kde \
+        -t {{image_name}}:kde-{{image_tag}} \
+        --platform linux/amd64 \
+        .
+
+# Build GNOME variant
+build-gnome: build-base
+    @echo "Building GNOME variant..."
+    {{container_cmd}} build \
+        -f Containerfile.gnome \
+        -t {{image_name}}:gnome-{{image_tag}} \
+        --platform linux/amd64 \
+        .
+
+# Build Hyprland variant
+build-hyprland: build-base
+    @echo "Building Hyprland variant..."
+    {{container_cmd}} build \
+        -f Containerfile.hyprland \
+        -t {{image_name}}:hyprland-{{image_tag}} \
+        --platform linux/amd64 \
+        .
+
+# Build all variants
+build-all: build-kde build-gnome build-hyprland
+    @echo "All variants built successfully!"
+
+# Pre-build AUR packages (requires Linux VM)
+build-packages:
+    @echo "WARNING: Building AUR packages on macOS requires a Linux VM"
+    @echo "Consider using 'just build-packages-in-container' instead"
+    @bash scripts/build-packages.sh
+
+# Build packages inside Arch Linux container
+build-packages-in-container:
+    @echo "Building packages in Arch Linux container..."
+    @mkdir -p packages/built
+    {{container_cmd}} run --rm \
+        -v "$(pwd)/packages:/packages" \
+        -w /packages \
+        --platform linux/amd64 \
+        archlinux:latest \
+        bash -c "pacman -Sy --noconfirm base-devel && cd aur && bash ../build-packages.sh"
+
+# Generate bootable disk image (NOT AVAILABLE ON MACOS)
+generate-image variant="kde":
+    @echo "❌ ERROR: Bootable image generation is not supported on macOS"
+    @echo ""
+    @echo "Reason: bootc-image-builder requires Linux kernel features"
+    @echo ""
+    @echo "Alternatives:"
+    @echo "  1. Use a Linux VM or machine for image generation"
+    @echo "  2. Use GitHub Actions CI/CD to build images"
+    @echo "  3. Export container and convert on Linux:"
+    @echo "     just export-for-linux {{variant}}"
+    @exit 1
+
+# Export image for Linux conversion
+export-for-linux variant="kde":
+    @echo "Exporting {{variant}} image for Linux conversion..."
+    @mkdir -p {{output_dir}}/export
+    {{container_cmd}} save {{image_name}}:{{variant}}-{{image_tag}} -o {{output_dir}}/export/{{variant}}.tar
+    @echo ""
+    @echo "✅ Exported to {{output_dir}}/export/{{variant}}.tar"
+    @echo ""
+    @echo "Next steps on Linux machine:"
+    @echo "  1. Transfer the tar file to Linux"
+    @echo "  2. podman load -i {{variant}}.tar"
+    @echo "  3. Use bootc-image-builder to generate bootable image"
+
+# Run VM (NOT AVAILABLE ON MACOS - use UTM or Parallels)
+run-vm image="output/skorionos-bootc.img":
+    @echo "❌ Native QEMU with KVM is not available on macOS"
+    @echo ""
+    @echo "Alternatives for testing on macOS:"
+    @echo "  1. UTM: https://mac.getutm.app/"
+    @echo "  2. Parallels Desktop"
+    @echo "  3. VMware Fusion"
+    @echo "  4. Use a Linux machine for testing"
+    @exit 1
+
+# Test in container (works on macOS)
+test-container variant="kde":
+    @echo "Testing {{variant}} in container (no boot)..."
+    {{container_cmd}} run -it --rm \
+        --platform linux/amd64 \
+        {{image_name}}:{{variant}}-{{image_tag}} \
+        bash -c "echo '==> System Info:' && uname -a && echo '==> Installed packages:' && pacman -Q | wc -l"
+
+# Test build in container
+test-build:
+    @echo "Running test build..."
+    {{container_cmd}} build \
+        -f Containerfile.base \
+        -t {{image_name}}:test \
+        --target test \
+        --platform linux/amd64 \
+        .
+
+# Push image to registry
+push variant="kde" tag="{{image_tag}}":
+    @echo "Pushing {{variant}} variant to registry..."
+    {{container_cmd}} tag {{image_name}}:{{variant}}-{{image_tag}} {{registry}}/{{image_name}}:{{variant}}-{{tag}}
+    {{container_cmd}} push {{registry}}/{{image_name}}:{{variant}}-{{tag}}
+
+# Push all variants
+push-all tag="{{image_tag}}":
+    @just push kde {{tag}}
+    @just push gnome {{tag}}
+    @just push hyprland {{tag}}
+
+# Clean build artifacts
+clean:
+    @echo "Cleaning build artifacts..."
+    rm -rf {{output_dir}}/*
+    {{container_cmd}} image prune -f
+
+# Deep clean (including containers and cache)
+clean-all:
+    @echo "Deep cleaning all containers and cache..."
+    {{container_cmd}} system prune -a -f
+    rm -rf {{output_dir}}
+
+# Show image information
+info variant="kde":
+    @echo "Image information for {{variant}} variant:"
+    {{container_cmd}} images {{image_name}}:{{variant}}-{{image_tag}}
+    @echo ""
+    @echo "Image layers:"
+    {{container_cmd}} inspect {{image_name}}:{{variant}}-{{image_tag}} | jq '.[0].RootFS.Layers'
+
+# Export image for debugging
+export variant="kde":
+    @echo "Exporting {{variant}} image..."
+    mkdir -p {{output_dir}}/export
+    {{container_cmd}} save {{image_name}}:{{variant}}-{{image_tag}} -o {{output_dir}}/export/{{variant}}.tar
+    @echo "Exported to {{output_dir}}/export/{{variant}}.tar"
+
+# Shell into image for debugging
+shell variant="kde":
+    @echo "Starting shell in {{variant}} image..."
+    {{container_cmd}} run -it --rm \
+        --platform linux/amd64 \
+        {{image_name}}:{{variant}}-{{image_tag}} \
+        /bin/bash
+
+# Lint Containerfiles (install hadolint via: brew install hadolint)
+lint:
+    @echo "Linting Containerfiles..."
+    @if command -v hadolint >/dev/null 2>&1; then \
+        hadolint Containerfile.base Containerfile.kde Containerfile.gnome; \
+    else \
+        echo "Install hadolint: brew install hadolint"; \
+    fi
+
+# Check package updates
+check-updates:
+    @echo "Checking for package updates..."
+    {{container_cmd}} run --rm \
+        --platform linux/amd64 \
+        {{image_name}}:base-{{image_tag}} \
+        pacman -Qu || echo "No updates available"
+
+# Show disk usage
+disk-usage:
+    @echo "Container storage usage:"
+    {{container_cmd}} system df
+
+# Development: quick rebuild and test
+dev variant="kde":
+    @echo "Development workflow: rebuild and test..."
+    just build-{{variant}}
+    just shell {{variant}}
+
+# CI: Full build and test pipeline
+ci:
+    @echo "Running CI pipeline..."
+    just lint
+    just build-all
+    just test-build
+    @echo "CI pipeline completed successfully!"
+
+# macOS specific: Check OrbStack status
+check-orbstack:
+    @echo "Checking OrbStack status..."
+    @{{container_cmd}} version || echo "OrbStack/Docker not running"
+    @echo ""
+    @echo "OrbStack features:"
+    @echo "  ✓ Fast Docker/Podman compatible"
+    @echo "  ✓ Apple Silicon & Intel support"
+    @echo "  ✓ Native Linux VMs"
+    @echo "  ✓ File sharing optimized"
+
+# macOS specific: Setup development environment
+setup-macos:
+    @echo "Setting up macOS development environment..."
+    @echo ""
+    @echo "Required tools:"
+    @echo "  1. OrbStack: https://orbstack.dev/"
+    @echo "  2. Just: brew install just"
+    @echo "  3. jq: brew install jq"
+    @echo "  4. hadolint (optional): brew install hadolint"
+    @echo ""
+    @echo "Checking installed tools..."
+    @command -v docker >/dev/null 2>&1 && echo "✓ Docker (OrbStack)" || echo "✗ Docker missing"
+    @command -v just >/dev/null 2>&1 && echo "✓ Just" || echo "✗ Just missing"
+    @command -v jq >/dev/null 2>&1 && echo "✓ jq" || echo "✗ jq missing"
+    @command -v hadolint >/dev/null 2>&1 && echo "✓ hadolint" || echo "✗ hadolint missing (optional)"
+
+# macOS specific: Platform info
+platform-info:
+    @echo "Platform Information:"
+    @echo "  OS: {{os}}"
+    @echo "  Architecture: $(uname -m)"
+    @echo "  Container Engine: {{container_cmd}}"
+    @echo "  Build Platform: linux/amd64"
+    @echo ""
+    @echo "Limitations on macOS:"
+    @echo "  ✗ Cannot generate bootable images (requires Linux)"
+    @echo "  ✗ Cannot test with QEMU KVM (macOS doesn't support KVM)"
+    @echo "  ✗ AUR package building requires container or Linux VM"
+    @echo ""
+    @echo "What works on macOS:"
+    @echo "  ✓ Build container images"
+    @echo "  ✓ Push to container registry"
+    @echo "  ✓ Test in containers"
+    @echo "  ✓ Export images for Linux"
+    @echo "  ✓ Development and debugging"
+

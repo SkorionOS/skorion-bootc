@@ -1,0 +1,2 @@
+[Environment]
+XDG_SESSION_TYPE=wayland

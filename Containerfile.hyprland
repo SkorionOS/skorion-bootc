@@ -1,0 +1,208 @@
+# SkorionOS Bootc - Hyprland Variant
+# Optimized layering based on ChimeraOS frzr Hyprland configuration
+
+FROM skorionos:base-latest AS hyprland
+
+LABEL org.opencontainers.image.title="SkorionOS Hyprland"
+LABEL org.opencontainers.image.description="Hyprland tiling compositor variant for SkorionOS Bootc"
+LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-bootc"
+
+# Switch back to root for package installation
+USER root
+
+# ==============================================================================
+# Layer 1: Core Hyprland compositor (stable, rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    hyprland \
+    hyprland-qt-support \
+    hyprutils \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 2: Hyprland ecosystem tools (updates regularly)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    hypridle \
+    hyprlock \
+    hyprpaper \
+    hyprpicker \
+    hyprshot \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 3: Wayland compositors and utilities (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    xdg-desktop-portal-hyprland \
+    xdg-desktop-portal-gtk \
+    xorg-xhost \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 4: Status bar and notifications (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    waybar \
+    mako \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 5: Application launchers (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    rofi-wayland \
+    wofi \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 6: Terminal and core applications (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    kitty \
+    xed \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 7: File manager (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    thunar \
+    thunar-archive-plugin \
+    thunar-media-tags-plugin \
+    thunar-volman \
+    tumbler \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 8: System utilities (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    brightnessctl \
+    pavucontrol \
+    network-manager-applet \
+    gnome-calculator \
+    seahorse \
+    gnome-keyring \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 9: Graphics and media (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    eog \
+    eog-plugins \
+    file-roller \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 10: Screenshot and clipboard (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    grim \
+    cliphist \
+    wl-clip-persist \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 11: Theme and appearance (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    kvantum \
+    kvantum-qt5 \
+    qt5ct \
+    qt6ct \
+    nwg-look \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 12: Authentication and security (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    polkit-gnome \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 13: Input method (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    fcitx5-im \
+    fcitx5-chinese-addons \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 14: Session manager (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    uwsm \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 15: Package management (updates regularly)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    gnome-software \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 16: Web browser (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    falkon \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 17: Fonts and Icons (rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    noto-fonts-cjk \
+    papirus-icon-theme \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 18: Configuration editor (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    dconf-editor \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 19: PAM configuration for GNOME Keyring (from hyprland_postinstallhook)
+# ==============================================================================
+RUN echo "password	optional	pam_gnome_keyring.so" >> /etc/pam.d/passwd
+
+# ==============================================================================
+# Layer 20: Hyprland-specific AUR packages (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    tofi \
+    wlogout-git \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 21: Copy Hyprland-specific configurations (changes most frequently)
+# ==============================================================================
+COPY config/hyprland/etc/ /etc/
+COPY config/hyprland/usr/ /usr/
+COPY config/skel/ /etc/skel/
+
+# ==============================================================================
+# Layer 22: Final cleanup
+# ==============================================================================
+RUN pacman -Scc --noconfirm && \
+    rm -rf /var/cache/pacman/pkg/* && \
+    rm -rf /tmp/* && \
+    rm -rf /var/tmp/*
+
+# ==============================================================================
+# Final stage
+# ==============================================================================
+WORKDIR /home/gamer
+USER gamer
+
+# Set Hyprland-specific environment variables
+ENV XDG_CURRENT_DESKTOP=Hyprland
+ENV XDG_SESSION_TYPE=wayland
+ENV QT_QPA_PLATFORM=wayland
+ENV QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+

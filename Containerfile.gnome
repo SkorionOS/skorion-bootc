@@ -1,59 +1,148 @@
 # SkorionOS Bootc - GNOME Variant
-# Modern, touch-friendly GNOME experience
+# Optimized layering based on ChimeraOS frzr GNOME configuration
 
 FROM skorionos:base-latest AS gnome
 
 LABEL org.opencontainers.image.title="SkorionOS GNOME"
 LABEL org.opencontainers.image.description="GNOME variant for SkorionOS Bootc"
+LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-bootc"
 
-# Install GNOME desktop
-RUN sudo pacman -S --noconfirm --needed \
-    # Core GNOME
-    gnome-shell \
+# Switch back to root for package installation
+USER root
+
+# ==============================================================================
+# Layer 1: Core GNOME Shell and Session (stable, rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     gnome-session \
-    gnome-settings-daemon \
+    gnome-shell \
+    gnome-shell-extensions \
+    gnome-shell-extension-appindicator \
+    gnome-shell-extension-desktop-icons-ng \
+    gnome-menus \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 2: GNOME Control and Settings (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     gnome-control-center \
-    gnome-terminal \
-    # Display manager
-    gdm \
-    # File manager and utilities
+    gnome-tweaks \
+    dconf-editor \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 3: System Integration (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    gnome-keyring \
+    gnome-remote-desktop \
+    xdg-desktop-portal-gnome \
+    xdg-user-dirs-gtk \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 4: File Manager and Core Apps (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     nautilus \
+    nautilus-python \
     file-roller \
-    evince \
-    eog \
-    gnome-calculator \
+    loupe \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 5: System Utilities (stable)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
     gnome-disk-utility \
     gnome-system-monitor \
-    # GNOME extras
-    gnome-tweaks \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 6: Text Editor and Terminal (updates occasionally)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    gnome-console \
+    gnome-terminal \
+    gnome-text-editor \
+    && pacman -Scc --noconfirm
+
+# ==============================================================================
+# Layer 7: Package Management (updates regularly)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    gnome-software \
     gnome-browser-connector \
-    # Extensions support
-    gnome-shell-extensions \
-    # Additional apps
-    firefox \
-    && sudo pacman -Scc --noconfirm
+    && pacman -Scc --noconfirm
 
-# Copy GNOME-specific configurations
-COPY config/gnome/ /etc/dconf/db/local.d/
+# ==============================================================================
+# Layer 8: Web Browser (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    epiphany \
+    && pacman -Scc --noconfirm
 
-# Enable GDM
-RUN sudo systemctl enable gdm
+# ==============================================================================
+# Layer 9: Fonts and Icons (rarely changes)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    noto-fonts-cjk \
+    papirus-icon-theme \
+    && pacman -Scc --noconfirm
 
-# Configure GDM autologin
-RUN sudo mkdir -p /etc/gdm && \
-    echo "[daemon]" | sudo tee /etc/gdm/custom.conf && \
-    echo "AutomaticLoginEnable=True" | sudo tee -a /etc/gdm/custom.conf && \
-    echo "AutomaticLogin=gamer" | sudo tee -a /etc/gdm/custom.conf
+# ==============================================================================
+# Layer 10: GNOME-specific AUR and local packages (updates frequently)
+# ==============================================================================
+RUN pacman -S --noconfirm --needed \
+    gnome-shell-extension-bluetooth-battery-meter-git \
+    gnome-shell-extension-blur-my-shell \
+    gnome-shell-extension-dash-to-dock \
+    gnome-shell-extension-enhanced-osk-git \
+    gnome-shell-extension-hibernate-status-git \
+    gnome-shell-extension-logo-menu \
+    gnome-shell-extension-screen-autorotate \
+    nautilus-copy-path \
+    nautilus-open-any-terminal \
+    steamdeck-gnome-presets \
+    && pacman -Scc --noconfirm
 
-# Update dconf database
-RUN sudo dconf update
+# ==============================================================================
+# Layer 11: Copy GNOME-specific configurations (changes most frequently)
+# ==============================================================================
+COPY config/gnome/etc/ /etc/
+COPY config/gnome/usr/ /usr/
+COPY config/skel/ /etc/skel/
+COPY config/wallpapers/gnome-backgrounds/usr/share/ /usr/share/
+COPY config/wallpapers/gnome-backgrounds-cachyos/usr/share/ /usr/share/
 
-# Clean up
-RUN sudo pacman -Scc --noconfirm && \
-    sudo rm -rf /var/cache/pacman/pkg/* && \
-    sudo rm -rf /tmp/* && \
-    sudo rm -rf /var/tmp/*
+# ==============================================================================
+# Layer 12: GNOME desktop files for SkorionOS tools (from manifest-gnome-full)
+# ==============================================================================
+RUN mkdir -p /etc/skel/Desktop
 
+# ==============================================================================
+# Layer 13: GNOME-specific system tweaks
+# ==============================================================================
+RUN set -ex && \
+    # mutter x11 fractional scaling support \
+    dconf_conf_path="/etc/dconf/db/local.d/00-sk-global" && \
+    if pacman -Q mutter-x11-scaling > /dev/null 2>&1; then \
+        if [ -f "$dconf_conf_path" ] && ! grep -q "x11-randr-fractional-scaling" "$dconf_conf_path"; then \
+            sed -i "s/experimental-features=\['/experimental-features=\['x11-randr-fractional-scaling','/g" "$dconf_conf_path"; \
+        fi; \
+    fi
+
+# ==============================================================================
+# Layer 14: Final cleanup
+# ==============================================================================
+RUN pacman -Scc --noconfirm && \
+    rm -rf /var/cache/pacman/pkg/* && \
+    rm -rf /tmp/* && \
+    rm -rf /var/tmp/*
+
+# ==============================================================================
+# Final stage
+# ==============================================================================
 WORKDIR /home/gamer
 USER gamer
-

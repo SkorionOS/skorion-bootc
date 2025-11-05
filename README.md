@@ -42,15 +42,34 @@ SkorionOS Bootc is an experimental reimplementation of SkorionOS (formerly Chime
 └─────────────────────────────────────┘
 ```
 
+## AUR and Local Packages
+
+SkorionOS uses a separate **[skorion-packages](https://github.com/SkorionOS/skorion-packages)** repository to manage AUR and local packages:
+
+- 🎯 **自建 pacman 仓库**: 预构建的 AUR 和本地包
+- 📦 **GitHub Releases**: 使用 `latest` Release 作为滚动仓库
+- 🔄 **增量构建**: CI 只重建有变化的包
+- 📅 **每周快照**: 自动创建带日期的归档 Release
+
+所有 Containerfile 已配置使用此仓库：
+
+```ini
+[skorion]
+SigLevel = Optional TrustAll
+Server = https://github.com/SkorionOS/skorion-packages/releases/download/latest
+```
+
 ## Project Status
 
 🚧 **Work In Progress** - This is an experimental project for testing and validation.
 
 ### Completed
 - [x] Project structure
-- [ ] Base system Containerfile
-- [ ] Desktop environment variants (KDE, GNOME, Hyprland)
-- [ ] Build scripts
+- [x] Base system Containerfile
+- [x] Desktop environment variants (KDE, GNOME, Hyprland)
+- [x] AUR/local packages repository
+- [x] Build scripts
+- [x] CI/CD workflows
 - [ ] Boot image generation
 - [ ] Hardware quirks integration
 - [ ] Update mechanism testing
@@ -63,10 +82,10 @@ SkorionOS Bootc is an experimental reimplementation of SkorionOS (formerly Chime
 
 ## Prerequisites
 
-### Build Host Requirements
+### Linux Build Host
 
 ```bash
-# Required packages
+# Arch Linux
 sudo pacman -S \
     podman \
     buildah \
@@ -74,9 +93,34 @@ sudo pacman -S \
     just \
     qemu-full
 
+# Fedora
+sudo dnf install \
+    podman \
+    buildah \
+    skopeo \
+    just \
+    qemu-system-x86
+
 # Optional: bootc-image-builder for generating bootable images
 # (May need to build from source or use container)
 ```
+
+### macOS Build Host (with OrbStack)
+
+```bash
+# Install OrbStack (Docker compatible)
+brew install orbstack
+
+# Install build tools
+brew install just jq
+
+# Optional: Dockerfile linting
+brew install hadolint
+
+# See MACOS.md for detailed instructions
+```
+
+**Note**: macOS can build container images but cannot generate bootable images directly. See [MACOS.md](MACOS.md) for the complete macOS workflow.
 
 ### Runtime Requirements (Target System)
 
@@ -97,23 +141,33 @@ cd skorion-bootc
 ### 2. Build the Container Image
 
 ```bash
-# Build base system
+# Linux (with Podman)
 just build-base
-
-# Or build specific desktop variant
 just build-kde
-just build-gnome
-just build-hyprland
+
+# macOS (with Docker/OrbStack)
+just -f Justfile.macos build-base
+just -f Justfile.macos build-kde
+
+# Or create a symlink on macOS
+ln -sf Justfile.macos Justfile.local
+just build-kde
 ```
 
 ### 3. Generate Bootable Image
 
 ```bash
-# Generate a bootable disk image for testing in VM
-just generate-image
+# Linux only (requires bootc-image-builder)
+just generate-image kde
 
-# Output: output/skorionos-bootc.img
+# Output: output/skorionos-kde.img
+
+# macOS: Export and convert on Linux
+just -f Justfile.macos export-for-linux kde
+# Transfer to Linux machine for bootable image generation
 ```
+
+**Note**: Bootable image generation requires Linux. macOS users can build containers and push to registry, then generate images on Linux/CI. See [MACOS.md](MACOS.md) for details.
 
 ### 4. Test in Virtual Machine
 

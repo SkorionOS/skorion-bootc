@@ -1,0 +1,13 @@
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+icon-theme='Papirus'
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/cachyos/PinkLady.png'
+picture-uri-dark='file:///usr/share/backgrounds/cachyos/BlueLady.png'
+picture-options='zoom'
+primary-color='#86b6ef'
+secondary-color='#000000'
+
+[org/gnome/mutter]
+center-new-windows=true

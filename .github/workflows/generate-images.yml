@@ -44,38 +44,34 @@ jobs:
           sudo apt-get install -y podman
           echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
       
-      - name: Generate bootable image
+      - name: Export container image
         if: steps.check.outputs.build == 'true'
         run: |
           mkdir -p output
-          fallocate -l 20G output/skorionos-${{ matrix.variant }}.raw
-          sudo podman run --rm --privileged --pid=host \
-            -v /var/lib/containers:/var/lib/containers \
-            -v /dev:/dev \
-            -v "$(pwd)/output":/data \
-            ghcr.io/bootcrew/arch-bootc:latest \
-            bootc install to-disk \
-              --source-imgref=docker://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}-latest \
-              --filesystem=btrfs \
-              --via-loopback \
-              /data/skorionos-${{ matrix.variant }}.raw
+          # Pull the image
+          podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}-latest
+          # Export as tar archive
+          podman save -o output/skorionos-${{ matrix.variant }}.tar \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}-latest
       
-      - name: Compress and cleanup
+      - name: Compress and generate checksum
         if: steps.check.outputs.build == 'true'
         run: |
-          sudo chown -R $USER:$USER output/
           cd output
-          zstd -19 skorionos-${{ matrix.variant }}.raw -o skorionos-${{ matrix.variant }}.raw.zst
-          sha256sum skorionos-${{ matrix.variant }}.raw.zst > skorionos-${{ matrix.variant }}.raw.zst.sha256
-          rm -f skorionos-${{ matrix.variant }}.raw
+          # Compress with zstd
+          zstd -19 skorionos-${{ matrix.variant }}.tar -o skorionos-${{ matrix.variant }}.tar.zst
+          # Generate SHA256 checksum
+          sha256sum skorionos-${{ matrix.variant }}.tar.zst > skorionos-${{ matrix.variant }}.tar.zst.sha256
+          # Remove uncompressed tar to save space
+          rm -f skorionos-${{ matrix.variant }}.tar
       
       - name: Upload artifacts
         if: steps.check.outputs.build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: skorionos-${{ matrix.variant }}-bootable
+          name: skorionos-${{ matrix.variant }}-image
           path: |
-            output/skorionos-${{ matrix.variant }}.raw.zst
-            output/skorionos-${{ matrix.variant }}.raw.zst.sha256
+            output/skorionos-${{ matrix.variant }}.tar.zst
+            output/skorionos-${{ matrix.variant }}.tar.zst.sha256
           retention-days: 30
 

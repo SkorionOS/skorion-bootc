@@ -1,0 +1,27 @@
+# SkorionOS GNOME dconf settings
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+gtk-theme='Adwaita-dark'
+enable-hot-corners=false
+
+[org/gnome/desktop/wm/preferences]
+button-layout='appmenu:minimize,maximize,close'
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-timeout=0
+sleep-inactive-battery-timeout=1800
+
+[org/gnome/shell]
+favorite-apps=['steam.desktop', 'org.gnome.Nautilus.desktop', 'firefox.desktop', 'org.gnome.Terminal.desktop']
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/skorionos/default.png'
+picture-uri-dark='file:///usr/share/backgrounds/skorionos/default.png'
+
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+

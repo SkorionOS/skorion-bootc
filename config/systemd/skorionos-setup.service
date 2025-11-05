@@ -1,0 +1,15 @@
+# First-boot setup service for SkorionOS
+[Unit]
+Description=SkorionOS First Boot Setup
+ConditionPathExists=!/var/lib/skorionos/.setup-complete
+After=local-fs.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/skorionos-first-boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+

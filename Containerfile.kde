@@ -1,0 +1,81 @@
+# SkorionOS Bootc - KDE Plasma Variant
+# Gaming-focused KDE experience similar to Steam Deck
+
+FROM skorionos:base-latest AS kde
+
+LABEL org.opencontainers.image.title="SkorionOS KDE"
+LABEL org.opencontainers.image.description="KDE Plasma variant for SkorionOS Bootc"
+
+# Install KDE Plasma and essential applications
+RUN sudo pacman -S --noconfirm --needed \
+    # Core Plasma
+    plasma-desktop \
+    plasma-workspace \
+    plasma-nm \
+    plasma-pa \
+    plasma-systemmonitor \
+    bluedevil \
+    powerdevil \
+    kscreen \
+    kde-gtk-config \
+    breeze-gtk \
+    # KDE Applications
+    dolphin \
+    konsole \
+    kate \
+    ark \
+    spectacle \
+    gwenview \
+    okular \
+    kcalc \
+    # System settings modules
+    systemsettings \
+    kinfocenter \
+    # Display manager
+    sddm \
+    # Wayland session
+    plasma-wayland-session \
+    kwayland-integration \
+    qt6-wayland \
+    # Gamescope (will be from AUR/local packages)
+    # Additional utilities
+    packagekit-qt6 \
+    firefox \
+    && sudo pacman -Scc --noconfirm
+
+# Install gaming-specific packages
+RUN sudo pacman -S --noconfirm --needed \
+    gamescope \
+    && sudo pacman -Scc --noconfirm || echo "Gamescope not in official repos, will use AUR"
+
+# Copy KDE-specific configurations
+COPY config/sddm/ /etc/sddm.conf.d/
+COPY config/plasma/ /etc/xdg/
+
+# Enable SDDM
+RUN sudo systemctl enable sddm
+
+# Configure autologin for gamer user (gaming mode)
+RUN sudo mkdir -p /etc/sddm.conf.d && \
+    echo "[Autologin]" | sudo tee /etc/sddm.conf.d/autologin.conf && \
+    echo "User=gamer" | sudo tee -a /etc/sddm.conf.d/autologin.conf && \
+    echo "Session=plasma" | sudo tee -a /etc/sddm.conf.d/autologin.conf
+
+# Steam Deck-like theme configurations
+RUN sudo mkdir -p /etc/xdg/kde-mimeapps.list && \
+    sudo mkdir -p /home/gamer/.config
+
+# Set default applications
+RUN echo "[Default Applications]" | sudo tee /etc/xdg/kde-mimeapps.list && \
+    echo "x-scheme-handler/http=firefox.desktop" | sudo tee -a /etc/xdg/kde-mimeapps.list && \
+    echo "x-scheme-handler/https=firefox.desktop" | sudo tee -a /etc/xdg/kde-mimeapps.list
+
+# Clean up
+RUN sudo pacman -Scc --noconfirm && \
+    sudo rm -rf /var/cache/pacman/pkg/* && \
+    sudo rm -rf /tmp/* && \
+    sudo rm -rf /var/tmp/*
+
+WORKDIR /home/gamer
+USER gamer
+

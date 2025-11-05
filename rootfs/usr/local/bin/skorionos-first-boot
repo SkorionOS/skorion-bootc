@@ -1,0 +1,29 @@
+#!/bin/bash
+# SkorionOS first boot setup script
+
+set -e
+
+echo "==> Running SkorionOS first boot setup..."
+
+# Create state directory
+mkdir -p /var/lib/skorionos
+
+# Expand home directory if needed
+# (Similar to ChimeraOS's auto-expand-home)
+HOME_SIZE=$(df -BG /home | tail -1 | awk '{print $2}' | sed 's/G//')
+if [ "$HOME_SIZE" -lt 50 ]; then
+    echo "==> Expanding home directory..."
+    # Add expansion logic here
+fi
+
+# Initialize Flatpak
+if command -v flatpak &> /dev/null; then
+    echo "==> Initializing Flatpak..."
+    flatpak remote-add --if-not-exists --system flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
+fi
+
+# Mark setup as complete
+touch /var/lib/skorionos/.setup-complete
+
+echo "==> First boot setup complete!"
+

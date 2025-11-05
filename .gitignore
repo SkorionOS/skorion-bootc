@@ -1,0 +1,46 @@
+# Build outputs
+output/
+*.img
+*.qcow2
+*.raw
+*.iso
+
+# Package builds
+packages/built/*.pkg.tar.zst
+packages/built/*.tar.xz
+packages/aur/*/src/
+packages/aur/*/pkg/
+packages/local/*/src/
+packages/local/*/pkg/
+*.pkg.tar.zst
+*.pkg.tar.xz
+
+# Container artifacts
+.buildah*/
+.docker*/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# System
+.cache/
+__pycache__/
+*.pyc
+
+# Test files
+test-*.img
+test-*.qcow2
+

@@ -1,0 +1,59 @@
+# SkorionOS Bootc - GNOME Variant
+# Modern, touch-friendly GNOME experience
+
+FROM skorionos:base-latest AS gnome
+
+LABEL org.opencontainers.image.title="SkorionOS GNOME"
+LABEL org.opencontainers.image.description="GNOME variant for SkorionOS Bootc"
+
+# Install GNOME desktop
+RUN sudo pacman -S --noconfirm --needed \
+    # Core GNOME
+    gnome-shell \
+    gnome-session \
+    gnome-settings-daemon \
+    gnome-control-center \
+    gnome-terminal \
+    # Display manager
+    gdm \
+    # File manager and utilities
+    nautilus \
+    file-roller \
+    evince \
+    eog \
+    gnome-calculator \
+    gnome-disk-utility \
+    gnome-system-monitor \
+    # GNOME extras
+    gnome-tweaks \
+    gnome-browser-connector \
+    # Extensions support
+    gnome-shell-extensions \
+    # Additional apps
+    firefox \
+    && sudo pacman -Scc --noconfirm
+
+# Copy GNOME-specific configurations
+COPY config/gnome/ /etc/dconf/db/local.d/
+
+# Enable GDM
+RUN sudo systemctl enable gdm
+
+# Configure GDM autologin
+RUN sudo mkdir -p /etc/gdm && \
+    echo "[daemon]" | sudo tee /etc/gdm/custom.conf && \
+    echo "AutomaticLoginEnable=True" | sudo tee -a /etc/gdm/custom.conf && \
+    echo "AutomaticLogin=gamer" | sudo tee -a /etc/gdm/custom.conf
+
+# Update dconf database
+RUN sudo dconf update
+
+# Clean up
+RUN sudo pacman -Scc --noconfirm && \
+    sudo rm -rf /var/cache/pacman/pkg/* && \
+    sudo rm -rf /tmp/* && \
+    sudo rm -rf /var/tmp/*
+
+WORKDIR /home/gamer
+USER gamer
+

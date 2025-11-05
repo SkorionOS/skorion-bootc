@@ -1,0 +1,193 @@
+# SkorionOS Bootc - Base System
+# This builds the base system layer that all variants extend from
+
+FROM docker.io/library/archlinux:latest AS base
+
+# Metadata
+LABEL org.opencontainers.image.title="SkorionOS Base"
+LABEL org.opencontainers.image.description="Base system for SkorionOS Bootc"
+LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-bootc"
+
+# System configuration
+ENV SYSTEM_NAME="skorionos"
+ENV USERNAME="gamer"
+ENV USER_UID="1000"
+ENV USER_GID="1000"
+
+# Initialize keyring and update system
+RUN pacman-key --init && \
+    pacman-key --populate archlinux && \
+    pacman -Syu --noconfirm
+
+# Install base system packages
+RUN pacman -S --noconfirm --needed \
+    # Base system
+    base-devel \
+    sudo \
+    systemd \
+    systemd-sysvcompat \
+    dbus \
+    # Bootloader and boot tools
+    efibootmgr \
+    # Network
+    networkmanager \
+    openssh \
+    # Filesystem tools
+    btrfs-progs \
+    f2fs-tools \
+    exfatprogs \
+    ntfs-3g \
+    dosfstools \
+    # Compression
+    zstd \
+    lz4 \
+    xz \
+    # Hardware support
+    linux-firmware \
+    intel-ucode \
+    amd-ucode \
+    # Audio
+    pipewire \
+    pipewire-alsa \
+    pipewire-pulse \
+    pipewire-jack \
+    wireplumber \
+    # Graphics base (Mesa)
+    mesa \
+    lib32-mesa \
+    vulkan-icd-loader \
+    lib32-vulkan-icd-loader \
+    vulkan-mesa-layers \
+    lib32-vulkan-mesa-layers \
+    # Intel graphics
+    vulkan-intel \
+    lib32-vulkan-intel \
+    intel-media-driver \
+    # AMD graphics
+    vulkan-radeon \
+    lib32-vulkan-radeon \
+    # Container runtime
+    podman \
+    distrobox \
+    # Utilities
+    vim \
+    nano \
+    htop \
+    btop \
+    git \
+    wget \
+    curl \
+    rsync \
+    unzip \
+    p7zip \
+    && pacman -Scc --noconfirm
+
+# Install SkorionOS-specific base packages
+RUN pacman -S --noconfirm --needed \
+    aria2 \
+    bat \
+    bluez-utils \
+    cmake \
+    ddcutil \
+    expect \
+    fastfetch \
+    fd \
+    fzf \
+    gparted \
+    haveged \
+    jq \
+    libva \
+    lib32-libva \
+    lzip \
+    nmon \
+    patch \
+    plymouth \
+    python-pyudev \
+    python-systemd \
+    ripgrep \
+    screen \
+    smartmontools \
+    switcheroo-control \
+    s-tui \
+    ttf-dejavu \
+    wlr-randr \
+    xdelta3 \
+    zoxide \
+    zsh \
+    && pacman -Scc --noconfirm
+
+# Install gaming-related packages
+RUN pacman -S --noconfirm --needed \
+    steam \
+    mangohud \
+    lib32-mangohud \
+    gamemode \
+    lib32-gamemode \
+    gst-plugin-pipewire \
+    lib32-pipewire \
+    lib32-systemd \
+    && pacman -Scc --noconfirm
+
+# Create gamer user
+RUN useradd -m -u ${USER_UID} -G wheel,audio,video,input,storage,network ${USERNAME} && \
+    echo "${USERNAME}:${USERNAME}" | chpasswd && \
+    echo "%wheel ALL=(ALL:ALL) ALL" >> /etc/sudoers && \
+    echo "Defaults !secure_path" >> /etc/sudoers
+
+# Configure systemd services
+RUN systemctl enable NetworkManager && \
+    systemctl enable sshd && \
+    systemctl enable bluetooth && \
+    systemctl enable haveged && \
+    systemctl enable systemd-timesyncd && \
+    systemctl enable fstrim.timer
+
+# Copy rootfs overlay
+COPY rootfs/ /
+
+# Set locale
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
+    echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen && \
+    locale-gen && \
+    echo "LANG=en_US.UTF-8" > /etc/locale.conf
+
+# Set timezone
+RUN ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
+# Configure hostname
+RUN echo "skorionos" > /etc/hostname && \
+    echo "127.0.0.1 localhost" >> /etc/hosts && \
+    echo "::1 localhost" >> /etc/hosts && \
+    echo "127.0.1.1 skorionos.localdomain skorionos" >> /etc/hosts
+
+# SSH configuration
+RUN sed -i "s/#PasswordAuthentication yes/PasswordAuthentication yes/" /etc/ssh/sshd_config && \
+    sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config
+
+# Podman configuration
+RUN echo "unqualified-search-registries = ['docker.io']" >> /etc/containers/registries.conf
+
+# Configure suspend settings
+RUN sed -i "s/#SuspendEstimationSec=60min/SuspendEstimationSec=30min/" /etc/systemd/sleep.conf
+
+# Clean up
+RUN pacman -Scc --noconfirm && \
+    rm -rf /var/cache/pacman/pkg/* && \
+    rm -rf /tmp/* && \
+    rm -rf /var/tmp/*
+
+# Set default shell to zsh for gamer user
+RUN chsh -s /usr/bin/zsh ${USERNAME}
+
+# Test stage for CI
+FROM base AS test
+RUN echo "Running tests..." && \
+    pacman -Q | grep -E "(steam|mesa|pipewire)" && \
+    id ${USERNAME} && \
+    systemctl list-unit-files | grep -E "(NetworkManager|sshd|bluetooth)"
+
+# Final stage
+FROM base
+WORKDIR /home/${USERNAME}
+USER ${USERNAME}
+

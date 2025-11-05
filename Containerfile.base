@@ -115,6 +115,7 @@ RUN pacman -S --noconfirm --needed \
     wireplumber \
     alsa-utils \
     pulsemixer \
+    qtractor \
     gst-plugin-pipewire \
     && pacman -Scc --noconfirm
 

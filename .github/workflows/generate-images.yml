@@ -72,8 +72,8 @@ jobs:
         run: |
           sudo chown -R $USER:$USER output/
           cd output
-          # Compress with zstd
-          zstd -19 skorionos-${{ matrix.variant }}.tar -o skorionos-${{ matrix.variant }}.tar.zst
+          # Compress with zstd (level 10, multithreaded for speed)
+          zstd -10 -T0 --verbose skorionos-${{ matrix.variant }}.tar -o skorionos-${{ matrix.variant }}.tar.zst
           # Generate SHA256 checksum
           sha256sum skorionos-${{ matrix.variant }}.tar.zst > skorionos-${{ matrix.variant }}.tar.zst.sha256
           # Remove uncompressed tar to save space

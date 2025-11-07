@@ -12,7 +12,7 @@ env:
   IMAGE_NAME: skorionos/skorion-bootc
 
 jobs:
-  build-base:
+  build-minimal:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,10 +27,44 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Build minimal image
+        run: |
+          docker build -f Containerfile.minimal \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:minimal-latest \
+            -t skorionos:minimal-latest \
+            .
+      
+      - name: Push minimal image
+        if: github.event_name != 'pull_request'
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:minimal-latest
+
+  build-base:
+    needs: build-minimal
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Pull minimal image
+        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:minimal-latest
+      
+      - name: Tag minimal as skorionos:minimal-latest
+        run: docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:minimal-latest skorionos:minimal-latest
+      
       - name: Build base image
         run: |
           docker build -f Containerfile.base \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:base-latest \
+            -t skorionos:base-latest \
             .
       
       - name: Push base image

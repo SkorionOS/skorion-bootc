@@ -47,10 +47,20 @@ check:
     @echo ""
     @echo "Ready to build!"
 
+# Build minimal system image
+build-minimal:
+    @echo "Building minimal system image..."
+    @echo "Using: {{container_cmd}}"
+    {{container_cmd}} build \
+        {{platform_flag}} \
+        -f Containerfile.minimal \
+        -t {{image_name}}:minimal-{{image_tag}} \
+        --layers \
+        .
+
 # Build base system image
 build-base:
     @echo "Building base system image..."
-    @echo "Using: {{container_cmd}}"
     {{container_cmd}} build \
         {{platform_flag}} \
         -f Containerfile.base \

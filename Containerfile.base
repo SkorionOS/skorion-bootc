@@ -1,15 +1,16 @@
 # SkorionOS Bootc - Base System
 # Optimized layering based on ChimeraOS frzr manifest
+# Built on top of skorionos:minimal-latest which provides bootc + dracut foundation
 # Packages ordered by update frequency: stable first, frequently updated last
 
-FROM ghcr.io/archlinux/archlinux:latest AS base
+FROM skorionos:minimal-latest AS base
 
 # Metadata
 LABEL org.opencontainers.image.title="SkorionOS Base"
 LABEL org.opencontainers.image.description="Base system for SkorionOS Bootc"
 LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-bootc"
 
-# System configuration
+# System configuration (inherited from minimal, kept for compatibility)
 ENV SYSTEM_NAME="skorionos"
 ENV USERNAME="gamer"
 ENV USER_UID="1000"
@@ -20,41 +21,27 @@ COPY manifest /tmp/manifest
 COPY scripts/build-functions.sh /tmp/build-functions.sh
 
 # ==============================================================================
-# Layer 1: System initialization (rarely changes)
+# Build optimization: Disable dracut hooks for build efficiency
+# Minimal already installed: bootc, dracut, kernel, skorion repo, multilib
 # ==============================================================================
-RUN pacman-key --init && \
-    pacman-key --populate archlinux && \
-    pacman -Syu --noconfirm && \
-    # Disable mkinitcpio during build for efficiency \
-    source /tmp/build-functions.sh && disable_mkinitcpio
+RUN source /tmp/build-functions.sh && disable_dracut
 
 # ==============================================================================
-# Layer 2: Add SkorionOS custom package repository FIRST (highest priority)
-# ==============================================================================
-RUN sed -i '/^\[core\]/i [skorion]\nSigLevel = Optional TrustAll\nServer = https://github.com/SkorionOS/skorion-packages/releases/download/latest\n' /etc/pacman.conf && \
-    pacman -Sy --noconfirm
-
-# ==============================================================================
-# Layer 3: Enable multilib repository (rarely changes)
-# ==============================================================================
-RUN echo "" >> /etc/pacman.conf && \
-    echo "[multilib]" >> /etc/pacman.conf && \
-    echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf && \
-    pacman -Sy --noconfirm
-
-# ==============================================================================
-# Layer 4: Install package overrides (kernel + pinned versions)
+# Package overrides: Install pinned versions (non-kernel)
+# Note: KERNEL_OVERRIDES already installed in minimal layer
 # ==============================================================================
 RUN source /tmp/manifest && \
     cd /tmp && \
     for url in $PACKAGE_OVERRIDES; do \
         curl -LO "$url"; \
     done && \
-    pacman --noconfirm -U /tmp/*.pkg.tar.zst && \
-    rm /tmp/*.pkg.tar.zst
+    if ls /tmp/*.pkg.tar.zst 1> /dev/null 2>&1; then \
+        pacman --noconfirm -U /tmp/*.pkg.tar.zst && \
+        rm /tmp/*.pkg.tar.zst; \
+    fi
 
 # ==============================================================================
-# Layer 5: Graphics drivers - Mesa and Vulkan (updates regularly)
+# Graphics drivers: Mesa and Vulkan (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     lib32-mesa \
@@ -81,7 +68,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 6: Firmware and microcode (updates occasionally)
+# Firmware and microcode (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     linux-firmware \
@@ -92,7 +79,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 7: Hardware acceleration (updates occasionally)
+# Hardware acceleration (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     intel-media-driver \
@@ -104,7 +91,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 8: Audio system (stable)
+# Audio system (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     pipewire \
@@ -120,7 +107,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 9: Network and connectivity (stable)
+# Network and connectivity (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     networkmanager \
@@ -132,7 +119,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 10: Display servers (stable)
+# Display servers (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     xorg-server \
@@ -146,7 +133,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 11: Core system utilities (very stable)
+# Core system utilities (very stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     sudo \
@@ -164,7 +151,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 12: Filesystem tools (stable)
+# Filesystem tools (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     efibootmgr \
@@ -183,7 +170,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 13: Compression tools (very stable)
+# Compression tools (very stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     bzip2 \
@@ -200,7 +187,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 14: 32-bit gaming libraries (stable)
+# 32-bit gaming libraries (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     lib32-curl \
@@ -219,7 +206,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 15: Gaming core (updates regularly)
+# Gaming core (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     steam \
@@ -227,7 +214,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 16: Container runtime (updates occasionally)
+# Container runtime (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     podman \
@@ -237,7 +224,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 17: System services and hardware management (stable)
+# System services and hardware management (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     accountsservice \
@@ -248,7 +235,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 18: Hardware tools (stable)
+# Hardware tools (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     dmidecode \
@@ -263,7 +250,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 19: Performance and power management (updates regularly)
+# Performance and power management (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     cpupower \
@@ -276,7 +263,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 20: Development tools (changes occasionally)
+# Development tools (changes occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     cmake \
@@ -290,7 +277,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 21: Input methods (stable)
+# Input methods (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     ibus-libpinyin \
@@ -301,7 +288,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 22: Fonts (rarely changes)
+# Fonts (rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     ttf-dejavu \
@@ -314,7 +301,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 23: Multimedia (stable)
+# Multimedia (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     ffmpeg \
@@ -326,7 +313,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 24: System monitoring tools (changes frequently)
+# System monitoring tools (changes frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     htop \
@@ -336,7 +323,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 25: Modern CLI utilities (changes frequently)
+# Modern CLI utilities (changes frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     aria2 \
@@ -353,7 +340,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 26: GUI applications (updates regularly)
+# GUI applications (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     antimicrox \
@@ -366,7 +353,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 27: Optional third-party tools (updates frequently)
+# Optional third-party tools (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     lact-libadwaita \
@@ -378,7 +365,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 28: Additional tools (stable)
+# Additional tools (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     kitty-terminfo \
@@ -387,7 +374,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 29: Install AUR and local packages from skorion repository (updates frequently)
+# Install AUR and local packages from skorion repository (updates frequently)
 # ==============================================================================
 RUN source /tmp/build-functions.sh && \
     remove_conflicting_packages && \
@@ -449,18 +436,18 @@ RUN source /tmp/build-functions.sh && \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 30: Create user and groups
+# Create user and groups
 # ==============================================================================
 RUN source /tmp/build-functions.sh && setup_user
 
 # ==============================================================================
-# Layer 31: Copy rootfs overlay (changes most frequently)
+# Copy rootfs overlay (changes most frequently)
 # ==============================================================================
 # Note: Comment out if rootfs/ directory doesn't exist yet
 COPY rootfs/ /
 
 # ==============================================================================
-# Layer 32: Enable system services
+# Enable system services
 # ==============================================================================
 RUN systemctl enable \
         NetworkManager \
@@ -482,7 +469,7 @@ RUN systemctl enable \
         sk-chos-tool-autoupdate.timer
 
 # ==============================================================================
-# Layer 33: Enable user services
+# Enable user services
 # ==============================================================================
 RUN systemctl --global enable \
         pipewire \
@@ -494,12 +481,12 @@ RUN systemctl --global enable \
         monitor-waydroid
 
 # ==============================================================================
-# Layer 34: SDDM configuration for gaming session (changes occasionally)
+# SDDM configuration for gaming session (changes occasionally)
 # ==============================================================================
 RUN source /tmp/build-functions.sh && setup_sddm
 
 # ==============================================================================
-# Layer 35: System configuration (changes frequently)
+# System configuration (changes frequently)
 # ==============================================================================
 RUN source /tmp/build-functions.sh && \
     setup_system_basics && \
@@ -508,15 +495,15 @@ RUN source /tmp/build-functions.sh && \
     setup_release_info
 
 # ==============================================================================
-# Layer 36: System tweaks from frzr (changes frequently)
+# System tweaks from frzr (changes frequently)
 # ==============================================================================
 RUN source /tmp/build-functions.sh && apply_system_tweaks
 
 # ==============================================================================
-# Layer 37: Final cleanup (always last)
+# Restore dracut hooks and generate initramfs (always last)
 # ==============================================================================
 RUN source /tmp/build-functions.sh && \
-    restore_and_run_mkinitcpio && \
+    restore_and_run_dracut && \
     cleanup_system
 
 # ==============================================================================

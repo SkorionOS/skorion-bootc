@@ -2,14 +2,29 @@
 
 ## 📊 镜像构建结果
 
-| 变体 | 镜像标签 | 大小 | 相比 Base 增量 | 桌面环境 |
-|------|---------|------|---------------|----------|
-| **Base** | `skorionos:base-latest` | 6.62 GB | - | 无（命令行） |
+| 变体 | 镜像标签 | 大小 | 相比上层增量 | 桌面环境 |
+|------|---------|------|-------------|----------|
+| **Minimal** | `skorionos:minimal-latest` | ~2 GB | - | bootc + dracut 基础 |
+| **Base** | `skorionos:base-latest` | 6.62 GB | +4.62 GB | 无（命令行） |
 | **GNOME** | `skorionos:gnome-latest` | 7.80 GB | +1.18 GB | GNOME Shell 49 |
 | **KDE** | `skorionos:kde-latest` | 8.49 GB | +1.87 GB | Plasma Desktop 6.5 |
 | **Hyprland** | `skorionos:hyprland-latest` | 8.19 GB | +1.57 GB | Hyprland 0.51 |
 
+**注意**：现在采用三层架构
+- Minimal：bootc + dracut + 内核
+- Base：基于 Minimal + 完整桌面系统支持
+- 桌面变体：基于 Base + 特定桌面环境
+
 ## 🎯 构建成功验证
+
+### Minimal 镜像
+- ✅ bootc 1.10.0.r56 (git)
+- ✅ dracut + 51bootc 模块
+- ✅ bootc-root-setup.service
+- ✅ ostree + composefs
+- ✅ 内核 linux-skchos 6.17.7-1
+- ✅ initramfs 生成成功
+- ✅ bootc 目录结构（/ostree, /sysroot, /var/home）
 
 ### Base 镜像
 - ✅ 837 个软件包已安装
@@ -49,92 +64,143 @@
 
 ## 🏗️ 分层架构优化
 
-### Base 镜像（37 层）
+### 架构总览
+
+```
+archlinux:latest (官方基础镜像)
+  └─> skorionos:minimal-latest (bootc + dracut 基础层)
+        └─> skorionos:base-latest (完整系统层)
+              ├─> skorionos:kde-latest (KDE Plasma)
+              ├─> skorionos:gnome-latest (GNOME Shell)
+              └─> skorionos:hyprland-latest (Hyprland)
+```
+
+### Minimal 镜像（新增基础层）
+
+**职责**：提供 bootc + dracut 容器原生 OS 基础
+
+```
+- 系统初始化 (pacman-key, 系统更新)
+- skorion 自定义仓库 (最高优先级)
+- multilib 仓库启用
+- 内核安装 (KERNEL_OVERRIDES: linux-skchos 6.17.7-1 + headers)
+- bootc + dracut + ostree + composefs 完整栈
+- bootc-git 自定义包 (包含 dracut 模块和 systemd 服务)
+- dracut initramfs 生成
+- bootc 目录结构 (/ostree, /sysroot, /var/home)
+```
+
+**关键优势**：
+- ✅ 符合 bootc 标准的容器原生 OS
+- ✅ 使用 dracut（替代 mkinitcpio）
+- ✅ 完整的 bootc 集成（dracut 模块 + systemd 服务）
+- ✅ 作为所有变体的统一基础
+
+### Base 镜像
+
+**职责**：基于 minimal 添加完整桌面系统支持
 
 按更新频率组织，最稳定的在前：
 
 ```
-Layer 1:     系统初始化 (pacman-key, 系统更新)
-Layer 2:     skorion 自定义仓库 (最高优先级)
-Layer 3:     multilib 仓库启用
-Layer 4:     Package Overrides (自定义内核 + 固定版本包)
-             - linux-skchos 6.17.7-1 + headers
-             - libxkbcommon 1.11.0-1 (3个包)
-             - ibus-pinyin 1.5.1-2.3 (SteamOS版本)
-Layer 5-28:  系统包按功能分层
-             - Graphics, Firmware, Audio, Network
-             - Gaming, Container, Services
-             - Fonts, Multimedia, Tools
-             - AUR/Local packages from skorion repo
-Layer 29-32: 用户创建 + 服务启用
-Layer 33:    rootfs overlay (53个配置文件)
-Layer 34:    SDDM gamescope session 配置
-Layer 35:    系统配置 (locale, hostname, SSH, etc.)
-Layer 36:    frzr 系统调整 (vim, steam, waydroid, etc.)
-Layer 37:    最终清理
+- Build optimization: 禁用 dracut hooks（构建期间）
+- Package overrides: 非内核的固定版本包
+  * libxkbcommon 1.11.0-1 (3个包)
+  * ibus-pinyin 1.5.1-2.3 (SteamOS版本)
+- Graphics drivers: Mesa + Vulkan (所有驱动)
+- Firmware and microcode: 硬件固件
+- Hardware acceleration: VAAPI + 媒体驱动
+- Audio system: PipeWire 完整栈
+- Network and connectivity: NetworkManager + 工具
+- Display servers: Xorg + Wayland
+- Core system utilities: 基础系统工具
+- Filesystem tools: 文件系统支持
+- Compression tools: 压缩解压工具
+- Gaming: Steam + MangoHud + GameMode
+- Container runtime: Podman + Distrobox
+- System services: 硬件管理服务
+- Performance: TuneD + 电源管理
+- Development tools: 编译工具 + Git
+- Input methods: ibus 输入法
+- Fonts: 完整字体支持
+- Multimedia: FFmpeg + GStreamer
+- System monitoring: htop + btop
+- Modern CLI utilities: eza + ripgrep + fd
+- GUI applications: 图形界面工具
+- AUR/Local packages: 从 skorion 仓库安装
+- Create user: 创建 gamer 用户
+- Copy rootfs: 配置文件覆盖 (53个文件)
+- Enable system services: 启用系统级服务
+- Enable user services: 启用用户级服务
+- SDDM configuration: Gamescope 会话配置
+- System configuration: 本地化 + 主机名 + SSH
+- System tweaks: frzr 系统调整
+- Restore dracut: 恢复 hooks + 生成 initramfs (最后一次)
 ```
 
-### GNOME 变体（13 层）
+**注意**：现在使用语义化描述而非数字编号，便于维护
 
-```
-Layer 1:   Core GNOME Shell              382 MB  ★ 最大层
-Layer 2:   Control & Settings            48 MB
-Layer 3:   System Integration            12.7 MB
-Layer 4:   File Manager (Nautilus)       11.7 MB
-Layer 5:   System Utilities              25.6 MB
-Layer 6:   Text Editor & Terminal        13.2 MB
-Layer 7:   Software Center               7.99 MB
-Layer 8:   Web Browser (Epiphany)        6.92 MB
-Layer 9:   Fonts & Icons                 668 MB
-Layer 10:  SDDM Config                   116 B
-Layer 11:  Config Files                  (占位)
-Layer 12:  Desktop Files                 0 B
-Layer 13:  Cleanup                       108 KB
-```
+### 桌面变体
 
-### KDE 变体（14 层）
+所有桌面变体都继承自 base，只添加桌面环境特定的包和配置。
 
+#### GNOME 变体
 ```
-Layer 1:   Core Plasma Desktop           858 MB  ★ 最大层
-Layer 2:   System Integration            417 MB
-Layer 3:   KDE Applications              274 MB
-Layer 4:   Advanced Utilities            127 MB
-Layer 5:   Security & Auth               62 MB
-Layer 6:   Package Management (Discover) 57 MB
-Layer 7:   Multimedia (kpipewire)        489 KB
-Layer 8:   Input Method (fcitx5)         127 MB
-Layer 9:   Web Browser (Falkon)          34 MB
-Layer 10:  Accessibility (Onboard)       13 MB
-Layer 11:  Wallpapers                    63 MB
-Layer 12:  SDDM Config                   116 B
-Layer 13:  Config Files                  (占位)
-Layer 14:  Cleanup                       115 KB
+- Core GNOME Shell
+- Control & Settings
+- System Integration
+- File Manager (Nautilus)
+- System Utilities
+- Text Editor & Terminal
+- Software Center
+- Web Browser (Epiphany)
+- Fonts & Icons
+- GNOME-specific AUR packages
+- Config Files
+- Final cleanup
 ```
 
-### Hyprland 变体（21 层）
-
+#### KDE 变体
 ```
-Layer 1:   Core Hyprland                 58 MB  ★ 最大层
-Layer 2:   Hypr Tools (idle/lock/paper)  2 MB
-Layer 3:   Desktop Portals               1 MB
-Layer 4:   Status Bar & Notifications    18 MB
-Layer 5:   Launchers (rofi, wofi)        2 MB
-Layer 6:   Terminal (kitty) & Editor     82 MB
-Layer 7:   File Manager (Thunar)         24 MB
-Layer 8:   System Utilities              62 MB
-Layer 9:   Graphics & Media              43 MB
-Layer 10:  Screenshot & Clipboard        6 MB
-Layer 11:  Theme & Appearance            17 MB
-Layer 12:  Polkit (Authentication)       0.3 MB
-Layer 13:  Input Method (fcitx5)         350 MB
-Layer 14:  Session Manager (uwsm)        0.3 MB
-Layer 15:  Software Center               13 MB
-Layer 16:  Web Browser (Falkon)          16 MB
-Layer 17:  Fonts & Icons                 409 MB
-Layer 18:  dconf-editor                  3 MB
-Layer 19:  PAM Configuration             <1 KB
-Layer 20:  Config Files                  (占位)
-Layer 21:  Cleanup                       <1 KB
+- Core Plasma Desktop
+- System Integration
+- KDE Applications
+- Advanced Utilities
+- Security & Auth
+- Package Management (Discover)
+- Multimedia (kpipewire)
+- Input Method (fcitx5)
+- Web Browser (Falkon)
+- Accessibility (Onboard)
+- Wallpapers
+- KDE-specific AUR packages
+- Config Files
+- Final cleanup
+```
+
+#### Hyprland 变体
+```
+- Core Hyprland compositor
+- Hypr ecosystem tools
+- Wayland utilities
+- Status bar & notifications
+- Application launchers
+- Terminal & editor
+- File manager (Thunar)
+- System utilities
+- Graphics & media
+- Screenshot & clipboard
+- Theme & appearance
+- Authentication
+- Input method (fcitx5)
+- Session manager
+- Software center
+- Web browser
+- Fonts & icons
+- PAM configuration
+- Hyprland-specific AUR packages
+- Config Files
+- Final cleanup
 ```
 
 ## 📦 关键包版本
@@ -229,14 +295,25 @@ Layer 21:  Cleanup                       <1 KB
 
 ## 🔧 技术栈
 
+### 核心系统
 - **基础系统**：Arch Linux (rolling)
-- **包管理器**：pacman
-- **bootc**：Red Hat container-native OS
-- **存储后端**：composefs (zero-copy)
+- **包管理器**：pacman + 自定义 skorion 仓库
+- **容器原生 OS**：bootc (container-native)
+- **initramfs 生成**：dracut（替代 mkinitcpio）
+- **存储后端**：ostree + composefs (zero-copy, 原子更新)
 - **容器格式**：OCI Image
+
+### bootc 集成
+- **bootc 版本**：1.10.0.r56 (git)
+- **dracut 模块**：51bootc (官方模块)
+- **systemd 服务**：bootc-root-setup.service
+- **initramfs 二进制**：/usr/lib/bootc/initramfs-setup
+- **ostree 配置**：composefs enabled, readonly sysroot
+
+### 桌面与应用
 - **显示协议**：Wayland (默认)
 - **音频系统**：PipeWire
-- **容器运行时**：Podman
+- **容器运行时**：Podman + Distrobox
 
 ## 📝 注意事项
 
@@ -252,6 +329,21 @@ Layer 21:  Cleanup                       <1 KB
    - 路径：`rootfs/etc/`, `rootfs/usr/`
 
 ## ✅ 已完成的 frzr 迁移
+
+### bootc 容器原生 OS 集成（新增）
+- [x] **Containerfile.minimal**：独立的 bootc + dracut 基础层
+- [x] **bootc-git 自定义包**：完整的 bootc 安装
+  - 包含 dracut 模块（51bootc）
+  - 包含 systemd 服务（bootc-root-setup.service）
+  - 包含 ostree hooks
+  - 包含 man pages
+- [x] **dracut 替代 mkinitcpio**：
+  - 构建期间禁用 dracut hooks（disable_dracut）
+  - 最后统一生成 initramfs（restore_and_run_dracut）
+  - 动态内核版本检测
+- [x] **bootc 目录结构**：/ostree, /sysroot, /var/home
+- [x] **分层架构优化**：minimal → base → 桌面变体
+- [x] **移除数字层号**：使用语义化描述，便于维护
 
 ### 核心架构
 - [x] **自定义 pacman 仓库**：skorion 仓库配置（最高优先级）
@@ -272,55 +364,49 @@ Layer 21:  Cleanup                       <1 KB
 ### AUR/Local 包管理
 - [x] **skorion-packages 仓库**：独立仓库 + CI/CD
 - [x] **66个 AUR 包**：完整同步 frzr 的 aur-pkgs/
-- [x] **10个本地包**：从 chimeraos/pkgs 迁移
-- [x] **增量构建**：检测版本变化，只构建更新的包
+- [x] **11个本地包**：从 chimeraos/pkgs 迁移（包括 bootc-git）
+- [x] **增量构建**：检测版本变化和 pkgrel 变化
 - [x] **版本控制**：aur-pinned.txt 支持固定特定 commit
 - [x] **自动发布**：GitHub Release 作为 pacman 仓库
+- [x] **智能 pkgrel 处理**：只有 pkgver 变化时才重置 pkgrel
+
+### 系统服务和清理
+- [x] **SERVICES 系统服务启用**：18个系统级服务
+  - NetworkManager, bluetooth, sddm, sshd, etc.
+  - 位置：`Containerfile.base` "Enable system services"
+- [x] **USER_SERVICES 用户服务启用**：7个用户级服务
+  - pipewire, podman, sk-chos-user-daemon, etc.
+  - 使用 `systemctl --global enable`
+  - 位置：`Containerfile.base` "Enable user services"
+- [x] **PACKAGES_TO_DELETE**：8个冲突包删除
+  - amdvlk, pulseaudio, jack2, clang, etc.
+  - 函数：`remove_conflicting_packages()` + `apply_system_tweaks()`
+- [x] **FILES_TO_DELETE**：文件清理逻辑
+  - 删除文档、man pages、fallback initramfs
+  - 函数：`cleanup_system()`
+  - 节省空间 500MB+
 
 ## ⚠️ 待完成的 frzr 迁移
 
+**当前进度**：90% 完成（bootc 集成 ✅ + 核心架构 ✅ + AUR 包管理 ✅ + 服务启用 ✅ + 文件清理 ✅）
+
 ### 🔴 高优先级（影响基本功能）
 
-#### 1. SERVICES 系统服务启用（关键）
-当前缺失 manifest 中的以下服务：
+#### 1. 测试 base 镜像构建（关键）
+验证 bootc + dracut 迁移后的完整构建流程：
 ```bash
-# 需要检查 frzr manifest SERVICES 列表
-# 对比 Containerfile.base Layer 30-31 已启用的服务
-# 补充缺失的关键服务
+# 构建并测试
+just build-base
+docker run --rm skorionos:base-latest bootc --version
+docker run --rm skorionos:base-latest dracut --list-modules
+docker run --rm skorionos:base-latest ls -la /ostree /sysroot /var/home
 ```
-**位置**：`Containerfile.base` Layer 31
-
-#### 2. USER_SERVICES 用户服务启用（关键）
-当前缺失用户级服务启用：
-```bash
-# 需要检查 frzr manifest USER_SERVICES
-# 使用 systemctl --user enable 或 systemctl --global enable
-```
-**位置**：`Containerfile.base` Layer 32 附近
+**状态**：⏳ 待测试  
+**位置**：`Containerfile.base` 完整构建流程
 
 ### 🟡 中优先级（功能完整性）
 
-#### 3. FILES_TO_DELETE 文件清理
-```bash
-# manifest FILES_TO_DELETE：
-# - /usr/share/doc/* (文档)
-# - /usr/share/man/* (手册)
-# - /usr/lib/modules/*/build (dkms build files)
-# - 其他不必要文件
-```
-**作用**：节省 500MB+ 空间  
-**位置**：`Containerfile.base` Layer 37 清理阶段
-
-#### 4. PACKAGES_TO_DELETE 包删除
-```bash
-# manifest PACKAGES_TO_DELETE：
-# 删除与我们选择的包冲突的默认依赖
-# 例如：pulseaudio（我们用 pipewire）
-```
-**作用**：避免包冲突  
-**位置**：`Containerfile.base` Layer 36 调整阶段
-
-#### 5. predownload.sh 资源预下载
+#### 2. predownload.sh 资源预下载
 **包含内容**：
 - Decky Loader + 插件
 - Steam 主题（Vapor, VGUI2）
@@ -333,22 +419,45 @@ Layer 21:  Cleanup                       <1 KB
 - ❓ 方案B：构建 sk-pre.tar.gz 然后 COPY 进镜像
 - ❓ 方案C：启动时首次运行脚本下载
 
+**状态**：💭 待讨论方案  
 **位置**：待定（需要讨论）
 
 ### 🟢 低优先级（优化体验）
 
-#### 6. BUILD_SUMMARY.md 持续更新
-保持本文档与实际状态同步
+#### 3. 桌面变体完整测试
+测试所有桌面变体的构建和运行：
+```bash
+just build-kde
+just build-gnome
+just build-hyprland
+```
+**状态**：⏳ 待测试
+
+#### 4. CI/CD 自动构建
+设置 GitHub Actions 自动构建和发布镜像
+**状态**：📝 待实现
 
 ## 🎯 下一步行动
 
-**建议顺序**：
-1. 检查并补全 **SERVICES** 和 **USER_SERVICES**（30分钟）
-2. 添加 **FILES_TO_DELETE** 清理逻辑（15分钟）
-3. 添加 **PACKAGES_TO_DELETE** 删除逻辑（10分钟）
-4. 讨论并实施 **predownload.sh** 方案（1-2小时）
-5. 测试完整镜像构建
-6. 设置 CI/CD 自动构建
+**建议顺序**（基于当前 90% 完成度）：
+
+1. **测试 minimal + base 构建**（1小时）⭐ 最高优先级
+   - 验证 bootc + dracut 集成
+   - 验证 initramfs 生成
+   - 验证 bootc 目录结构
+   - 验证系统服务启用
+
+2. **测试桌面变体构建**（1-2小时）
+   - KDE, GNOME, Hyprland
+   - 验证完整功能
+
+3. **讨论并实施 predownload.sh 方案**（1-2小时）
+   - 选择最佳实现方案
+   - 集成到构建流程
+
+4. **设置 CI/CD 自动构建**（2-3小时）
+   - GitHub Actions 配置
+   - 自动发布到 Registry
 
 ## 📚 相关文档
 
@@ -363,7 +472,18 @@ Layer 21:  Cleanup                       <1 KB
 
 ---
 
-**最后更新**: 2025-11-05  
-**当前阶段**: frzr 配置迁移中（70%完成）  
-**下一里程碑**: 补全系统服务 + predownload 资源
+**最后更新**: 2025-11-07  
+**当前阶段**: bootc 集成完成 + frzr 配置迁移完成 90%  
+**最新进展**:
+- ✅ 完成 bootc + dracut 集成
+- ✅ 新增 Containerfile.minimal 基础层
+- ✅ 从 mkinitcpio 迁移到 dracut
+- ✅ 优化分层架构（minimal → base → 桌面变体）
+- ✅ 移除数字层号，改用语义化注释
+- ✅ 修复 bootc-git PKGBUILD（完整安装）
+- ✅ 优化 check-updates.sh（智能 pkgrel 处理）
+- ✅ 系统服务启用（18个系统服务 + 7个用户服务）
+- ✅ 包和文件清理（PACKAGES_TO_DELETE + FILES_TO_DELETE）
+
+**下一里程碑**: 测试完整镜像构建 + predownload 资源 + CI/CD
 

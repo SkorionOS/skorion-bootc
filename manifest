@@ -13,9 +13,12 @@ export BUG_REPORT_URL="https://github.com/SkorionOS/skorionos/issues"
 export KERNEL_PACKAGE="linux-skchos"
 export KERNEL_PACKAGE_ORIGIN="local"
 
-export PACKAGE_OVERRIDES="\
+export KERNEL_OVERRIDES="\
 	https://github.com/SkorionOS/linux-chimeraos/releases/download/v6.17.7-1/linux-skchos-6.17.7-1-x86_64.pkg.tar.zst \
 	https://github.com/SkorionOS/linux-chimeraos/releases/download/v6.17.7-1/linux-skchos-headers-6.17.7-1-x86_64.pkg.tar.zst \
+"
+
+export PACKAGE_OVERRIDES="\
 	https://archive.archlinux.org/packages/l/lib32-libxkbcommon/lib32-libxkbcommon-1.11.0-1-x86_64.pkg.tar.zst \
 	https://archive.archlinux.org/packages/l/libxkbcommon/libxkbcommon-1.11.0-1-x86_64.pkg.tar.zst \
 	https://archive.archlinux.org/packages/l/libxkbcommon-x11/libxkbcommon-x11-1.11.0-1-x86_64.pkg.tar.zst \

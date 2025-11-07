@@ -19,10 +19,19 @@ default:
     @echo ""
     @just --list
 
+# Build minimal system image
+build-minimal:
+    @echo "Building minimal system image..."
+    @echo "Platform: {{os}}"
+    {{container_cmd}} build \
+        -f Containerfile.minimal \
+        -t {{image_name}}:minimal-{{image_tag}} \
+        --platform linux/amd64 \
+        .
+
 # Build base system image
 build-base:
     @echo "Building base system image..."
-    @echo "Platform: {{os}}"
     {{container_cmd}} build \
         -f Containerfile.base \
         -t {{image_name}}:base-{{image_tag}} \

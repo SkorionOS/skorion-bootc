@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-boot
 USER root
 
 # ==============================================================================
-# Layer 1: Core GNOME Shell and Session (stable, rarely changes)
+# Core GNOME Shell and Session (stable, rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-session \
@@ -23,7 +23,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 2: GNOME Control and Settings (stable)
+# GNOME Control and Settings (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-control-center \
@@ -32,7 +32,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 3: System Integration (stable)
+# System Integration (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-keyring \
@@ -42,7 +42,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 4: File Manager and Core Apps (updates occasionally)
+# File Manager and Core Apps (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     nautilus \
@@ -52,7 +52,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 5: System Utilities (stable)
+# System Utilities (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-disk-utility \
@@ -60,7 +60,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 6: Text Editor and Terminal (updates occasionally)
+# Text Editor and Terminal (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-console \
@@ -69,7 +69,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 7: Package Management (updates regularly)
+# Package Management (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-software \
@@ -77,14 +77,14 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 8: Web Browser (updates frequently)
+# Web Browser (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     epiphany \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 9: Fonts and Icons (rarely changes)
+# Fonts and Icons (rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     noto-fonts-cjk \
@@ -92,7 +92,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 10: GNOME-specific AUR and local packages (updates frequently)
+# GNOME-specific AUR and local packages (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-shell-extension-bluetooth-battery-meter-git \
@@ -108,7 +108,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 11: Copy GNOME-specific configurations (changes most frequently)
+# Copy GNOME-specific configurations (changes most frequently)
 # ==============================================================================
 COPY config/gnome/etc/ /etc/
 COPY config/gnome/usr/ /usr/
@@ -117,12 +117,12 @@ COPY config/wallpapers/gnome-backgrounds/usr/share/ /usr/share/
 COPY config/wallpapers/gnome-backgrounds-cachyos/usr/share/ /usr/share/
 
 # ==============================================================================
-# Layer 12: GNOME desktop files for SkorionOS tools (from manifest-gnome-full)
+# GNOME desktop files for SkorionOS tools (from manifest-gnome-full)
 # ==============================================================================
 RUN mkdir -p /etc/skel/Desktop
 
 # ==============================================================================
-# Layer 13: GNOME-specific system tweaks
+# GNOME-specific system tweaks
 # ==============================================================================
 RUN set -ex && \
     # mutter x11 fractional scaling support \
@@ -134,7 +134,7 @@ RUN set -ex && \
     fi
 
 # ==============================================================================
-# Layer 14: Final cleanup
+# Final cleanup
 # ==============================================================================
 RUN pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/* && \

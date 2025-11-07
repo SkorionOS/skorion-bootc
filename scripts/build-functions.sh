@@ -5,83 +5,37 @@
 set -e
 
 # ==============================================================================
-# Build optimization: Disable mkinitcpio using pacman hook
+# Build optimization: Disable dracut hooks during package installation
 # ==============================================================================
-disable_mkinitcpio() {
-    # Create helper script for the hook
-    mkdir -p /usr/local/bin
-    cat > /usr/local/bin/replace-mkinitcpio-with-dummy.sh << 'EOFREPLACEMENT'
-#!/bin/bash
-# Backup real mkinitcpio if not already backed up
-if [ -f /usr/bin/mkinitcpio ] && [ ! -f /usr/bin/mkinitcpio.real ]; then
-    cp /usr/bin/mkinitcpio /usr/bin/mkinitcpio.real
-fi
-
-# Replace with dummy
-cat > /usr/bin/mkinitcpio << 'EOFDUMMY'
-#!/bin/bash
-echo "=========================================="
-echo "mkinitcpio: SKIPPED during build"
-echo "Will run once at Layer 37"
-echo "=========================================="
-exit 0
-EOFDUMMY
-chmod +x /usr/bin/mkinitcpio
-echo "mkinitcpio replaced with dummy"
-EOFREPLACEMENT
-    chmod +x /usr/local/bin/replace-mkinitcpio-with-dummy.sh
-    
-    # Create pacman hook that triggers when mkinitcpio is installed/upgraded
-    mkdir -p /usr/share/libalpm/hooks
-    cat > /usr/share/libalpm/hooks/00-disable-mkinitcpio.hook << 'EOFHOOK'
-[Trigger]
-Type = File
-Operation = Install
-Operation = Upgrade
-Target = usr/bin/mkinitcpio
-
-[Action]
-Description = Replacing mkinitcpio with dummy for build efficiency
-When = PostTransaction
-Exec = /usr/local/bin/replace-mkinitcpio-with-dummy.sh
-EOFHOOK
-    
-    # Backup and remove existing mkinitcpio hooks
-    # (in case mkinitcpio is already installed from base image)
-    mkdir -p /tmp/mkinitcpio-hooks-backup
-    find /usr/share/libalpm/hooks -name "*mkinitcpio*.hook" ! -name "00-disable-mkinitcpio.hook" \
-        -exec mv {} /tmp/mkinitcpio-hooks-backup/ \; 2>/dev/null || true
-    
-    echo "mkinitcpio auto-replacement hook installed (will activate when mkinitcpio is installed)"
+disable_dracut() {
+    # Backup dracut hooks to prevent automatic initramfs regeneration
+    mkdir -p /tmp/dracut-hooks-backup
+    mv /usr/share/libalpm/hooks/*dracut*.hook /tmp/dracut-hooks-backup/ 2>/dev/null || true
+    echo "=========================================="
+    echo "dracut hooks disabled for build efficiency"
+    echo "initramfs will be generated once at the end"
+    echo "=========================================="
 }
 
 # ==============================================================================
-# Build optimization: Restore and run mkinitcpio once at the end
+# Build optimization: Restore dracut hooks and generate initramfs once
 # ==============================================================================
-restore_and_run_mkinitcpio() {
-    # Remove our hook and helper script
-    rm -f /usr/share/libalpm/hooks/00-disable-mkinitcpio.hook
-    rm -f /usr/local/bin/replace-mkinitcpio-with-dummy.sh
-    
-    # Restore original mkinitcpio
-    if [ -f /usr/bin/mkinitcpio.real ]; then
-        mv /usr/bin/mkinitcpio.real /usr/bin/mkinitcpio
-    else
-        # If no backup, reinstall the package to get original
-        pacman -S --noconfirm mkinitcpio
-    fi
-    
-    # Restore original hooks
-    if [ -d /tmp/mkinitcpio-hooks-backup ]; then
-        find /tmp/mkinitcpio-hooks-backup -name "*.hook" -exec mv {} /usr/share/libalpm/hooks/ \; 2>/dev/null || true
-        rm -rf /tmp/mkinitcpio-hooks-backup
+restore_and_run_dracut() {
+    # Restore dracut hooks
+    if [ -d /tmp/dracut-hooks-backup ]; then
+        mv /tmp/dracut-hooks-backup/*.hook /usr/share/libalpm/hooks/ 2>/dev/null || true
+        rm -rf /tmp/dracut-hooks-backup
     fi
     
     # Generate initramfs once with all modules
     echo "=========================================="
-    echo "Running mkinitcpio ONCE to generate initramfs"
+    echo "Running dracut ONCE to generate initramfs"
     echo "=========================================="
-    mkinitcpio -P
+    KVER=$(ls /usr/lib/modules | grep -v '\.img$' | head -1)
+    dracut --force --no-hostonly --reproducible --zstd --verbose \
+           --kver "$KVER" "/usr/lib/modules/$KVER/initramfs.img"
+    
+    echo "initramfs generated: /usr/lib/modules/$KVER/initramfs.img"
 }
 
 
@@ -97,7 +51,7 @@ remove_conflicting_packages() {
 }
 
 # ==============================================================================
-# Layer 30: Create user and configure sudo
+# Create user and configure sudo
 # ==============================================================================
 setup_user() {
     source /tmp/manifest
@@ -110,7 +64,7 @@ setup_user() {
 }
 
 # ==============================================================================
-# Layer 34: Setup SDDM autologin for gamescope session
+# Setup SDDM autologin for gamescope session
 # ==============================================================================
 setup_sddm() {
     source /tmp/manifest
@@ -129,7 +83,7 @@ EOF
 }
 
 # ==============================================================================
-# Layer 35: Setup system locale, timezone, hostname
+# Setup system locale, timezone, hostname
 # ==============================================================================
 setup_system_basics() {
     source /tmp/manifest
@@ -150,7 +104,7 @@ setup_system_basics() {
 }
 
 # ==============================================================================
-# Layer 35: Setup SSH configuration
+# Setup SSH configuration
 # ==============================================================================
 setup_ssh() {
     cat > /etc/ssh/sshd_config << 'EOF'
@@ -164,7 +118,7 @@ EOF
 }
 
 # ==============================================================================
-# Layer 35: Setup podman and shell defaults
+# Setup podman and shell defaults
 # ==============================================================================
 setup_user_environment() {
     source /tmp/manifest
@@ -180,7 +134,7 @@ setup_user_environment() {
 }
 
 # ==============================================================================
-# Layer 35: Generate /etc/lsb-release and /etc/os-release
+# Generate /etc/lsb-release and /etc/os-release
 # ==============================================================================
 setup_release_info() {
     source /tmp/manifest
@@ -211,7 +165,7 @@ EOF
 }
 
 # ==============================================================================
-# Layer 36: Apply system tweaks and delete conflicting packages
+# Apply system tweaks and delete conflicting packages
 # ==============================================================================
 apply_system_tweaks() {
     source /tmp/manifest
@@ -224,7 +178,7 @@ apply_system_tweaks() {
 }
 
 # ==============================================================================
-# Layer 37: Final cleanup
+# Final cleanup
 # ==============================================================================
 cleanup_system() {
     source /tmp/manifest

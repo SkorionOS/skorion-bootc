@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-boot
 USER root
 
 # ==============================================================================
-# Layer 1: Core Hyprland compositor (stable, rarely changes)
+# Core Hyprland compositor (stable, rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     hyprland \
@@ -20,7 +20,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 2: Hyprland ecosystem tools (updates regularly)
+# Hyprland ecosystem tools (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     hypridle \
@@ -31,7 +31,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 3: Wayland compositors and utilities (stable)
+# Wayland compositors and utilities (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     xdg-desktop-portal-hyprland \
@@ -40,7 +40,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 4: Status bar and notifications (stable)
+# Status bar and notifications (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     waybar \
@@ -48,7 +48,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 5: Application launchers (stable)
+# Application launchers (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     rofi-wayland \
@@ -56,7 +56,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 6: Terminal and core applications (updates occasionally)
+# Terminal and core applications (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     kitty \
@@ -64,7 +64,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 7: File manager (stable)
+# File manager (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     thunar \
@@ -75,7 +75,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 8: System utilities (stable)
+# System utilities (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     brightnessctl \
@@ -87,7 +87,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 9: Graphics and media (stable)
+# Graphics and media (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     eog \
@@ -96,7 +96,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 10: Screenshot and clipboard (stable)
+# Screenshot and clipboard (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     grim \
@@ -105,7 +105,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 11: Theme and appearance (stable)
+# Theme and appearance (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     kvantum \
@@ -116,14 +116,14 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 12: Authentication and security (stable)
+# Authentication and security (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     polkit-gnome \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 13: Input method (stable)
+# Input method (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     fcitx5-im \
@@ -131,28 +131,28 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 14: Session manager (stable)
+# Session manager (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     uwsm \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 15: Package management (updates regularly)
+# Package management (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     gnome-software \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 16: Web browser (updates frequently)
+# Web browser (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     falkon \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 17: Fonts and Icons (rarely changes)
+# Fonts and Icons (rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     noto-fonts-cjk \
@@ -160,19 +160,19 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 18: Configuration editor (stable)
+# Configuration editor (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     dconf-editor \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 19: PAM configuration for GNOME Keyring (from hyprland_postinstallhook)
+# PAM configuration for GNOME Keyring (from hyprland_postinstallhook)
 # ==============================================================================
 RUN echo "password	optional	pam_gnome_keyring.so" >> /etc/pam.d/passwd
 
 # ==============================================================================
-# Layer 20: Hyprland-specific AUR packages (updates frequently)
+# Hyprland-specific AUR packages (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     tofi \
@@ -180,14 +180,14 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 21: Copy Hyprland-specific configurations (changes most frequently)
+# Copy Hyprland-specific configurations (changes most frequently)
 # ==============================================================================
 COPY config/hyprland/etc/ /etc/
 COPY config/hyprland/usr/ /usr/
 COPY config/skel/ /etc/skel/
 
 # ==============================================================================
-# Layer 22: Final cleanup
+# Final cleanup
 # ==============================================================================
 RUN pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/* && \

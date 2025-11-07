@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.source="https://github.com/SkorionOS/skorion-boot
 USER root
 
 # ==============================================================================
-# Layer 1: Core Plasma Desktop (stable, rarely changes)
+# Core Plasma Desktop (stable, rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     plasma-desktop \
@@ -23,7 +23,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 2: System integration (stable)
+# System integration (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     bluedevil \
@@ -38,7 +38,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 3: KDE applications (updates occasionally)
+# KDE applications (updates occasionally)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     dolphin \
@@ -53,7 +53,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 4: Advanced KDE utilities (stable)
+# Advanced KDE utilities (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     partitionmanager \
@@ -64,7 +64,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 5: Security and authentication (stable)
+# Security and authentication (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     kwallet-pam \
@@ -73,7 +73,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 6: Package management (updates regularly)
+# Package management (updates regularly)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     discover \
@@ -81,7 +81,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 7: Multimedia and Wayland (stable)
+# Multimedia and Wayland (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     kpipewire \
@@ -89,7 +89,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 8: Input method - fcitx5 (stable)
+# Input method - fcitx5 (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     fcitx5-im \
@@ -97,28 +97,28 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 9: Web browser (updates frequently)
+# Web browser (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     falkon \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 10: Accessibility - on-screen keyboard (stable)
+# Accessibility - on-screen keyboard (stable)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     onboard \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 11: Wallpapers (rarely changes)
+# Wallpapers (rarely changes)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     deepin-wallpapers \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 12: KDE-specific AUR and local packages (updates frequently)
+# KDE-specific AUR and local packages (updates frequently)
 # ==============================================================================
 RUN pacman -S --noconfirm --needed \
     plasma6-themes-vapor-steamos \
@@ -126,7 +126,7 @@ RUN pacman -S --noconfirm --needed \
     && pacman -Scc --noconfirm
 
 # ==============================================================================
-# Layer 13: Copy KDE-specific configurations (changes most frequently)
+# Copy KDE-specific configurations (changes most frequently)
 # ==============================================================================
 COPY config/plasma/etc/xdg/ /etc/xdg/
 COPY config/plasma/usr/ /usr/
@@ -134,7 +134,7 @@ COPY config/skel/ /etc/skel/
 COPY config/wallpapers/wallpapers/usr/share/wallpapers/ /usr/share/wallpapers/
 
 # ==============================================================================
-# Layer 14: Final cleanup
+# Final cleanup
 # ==============================================================================
 RUN pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/* && \

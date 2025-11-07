@@ -13,6 +13,15 @@ vm_cpus := "4"
 default:
     @just --list
 
+# Build minimal system image
+build-minimal:
+    @echo "Building minimal system image..."
+    podman build \
+        -f Containerfile.minimal \
+        -t {{image_name}}:minimal-{{image_tag}} \
+        --layers \
+        .
+
 # Build base system image
 build-base:
     @echo "Building base system image..."

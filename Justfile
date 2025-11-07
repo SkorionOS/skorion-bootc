@@ -2,12 +2,15 @@
 # Use 'just <recipe>' to run commands
 
 # Variables
-image_name := "skorionos"
-image_tag := "latest"
 registry := "ghcr.io/skorionos"
-output_dir := "output"
 vm_memory := "8G"
 vm_cpus := "4"
+
+image_name := env("BUILD_IMAGE_NAME", "skorionos")
+image_tag := env("BUILD_IMAGE_TAG", "latest")
+output_dir := env("BUILD_OUTPUT_DIR", "output")
+image_size := env("BUILD_IMAGE_SIZE", "20G")
+filesystem := env("BUILD_FILESYSTEM", "btrfs")
 
 # Default recipe - show available commands
 default:
@@ -16,7 +19,7 @@ default:
 # Build minimal system image
 build-minimal:
     @echo "Building minimal system image..."
-    podman build \
+    sudo podman build \
         -f Containerfile.minimal \
         -t {{image_name}}:minimal-{{image_tag}} \
         --layers \
@@ -25,7 +28,7 @@ build-minimal:
 # Build base system image
 build-base:
     @echo "Building base system image..."
-    podman build \
+    sudo podman build \
         -f Containerfile.base \
         -t {{image_name}}:base-{{image_tag}} \
         --layers \
@@ -34,7 +37,7 @@ build-base:
 # Build KDE variant
 build-kde: build-base
     @echo "Building KDE variant..."
-    podman build \
+    sudo podman build \
         -f Containerfile.kde \
         -t {{image_name}}:kde-{{image_tag}} \
         --layers \
@@ -43,7 +46,7 @@ build-kde: build-base
 # Build GNOME variant
 build-gnome: build-base
     @echo "Building GNOME variant..."
-    podman build \
+    sudo podman build \
         -f Containerfile.gnome \
         -t {{image_name}}:gnome-{{image_tag}} \
         --layers \
@@ -52,7 +55,7 @@ build-gnome: build-base
 # Build Hyprland variant
 build-hyprland: build-base
     @echo "Building Hyprland variant..."
-    podman build \
+    sudo podman build \
         -f Containerfile.hyprland \
         -t {{image_name}}:hyprland-{{image_tag}} \
         --layers \
@@ -72,6 +75,53 @@ generate-image variant="kde":
     @echo "Generating bootable image for {{variant}} variant..."
     mkdir -p {{output_dir}}
     bash scripts/generate-image.sh {{variant}} {{output_dir}}
+
+# Generate bootable disk image with composefs backend
+generate-bootable-image-local variant="minimal" filesystem=filesystem output_dir=output_dir image_size=image_size:
+    #!/usr/bin/env bash
+    set -e
+    IMG_FILE="{{output_dir}}/skorionos-{{variant}}.img"
+    IMG_REF="{{image_name}}:{{variant}}-{{image_tag}}"
+
+    if [[ "{{output_dir}}" = /* ]]; then
+        OUTPUT_PATH="{{output_dir}}"
+    else
+        OUTPUT_PATH="$(pwd)/{{output_dir}}"
+    fi
+
+    echo "==> Creating disk..."
+    mkdir -p "$OUTPUT_PATH"
+    rm -f "$IMG_FILE"
+    fallocate -l {{image_size}} "$IMG_FILE"
+
+    echo "==> Installing..."
+
+    sudo podman run \
+        --rm --privileged --pid=host \
+        -it \
+        -v /etc/containers:/etc/containers:Z \
+        -v /var/lib/containers:/var/lib/containers:Z \
+        -v /dev:/dev \
+        -e RUST_LOG=debug \
+        -v "$OUTPUT_PATH:/output" \
+        --security-opt label=type:unconfined_t \
+        "$IMG_REF" \
+        bootc install to-disk \
+        --composefs-backend --insecure --via-loopback \
+        --filesystem {{filesystem}} --wipe /output/skorionos-{{variant}}.img
+
+    echo "✅ Done: $IMG_FILE"
+
+# Fast build using tmpfs (25x faster, requires RAM)
+generate-bootable-image-fast variant="minimal" filesystem=filesystem size=image_size:
+    #!/usr/bin/env bash
+    set -e
+    echo "⚡ Fast build using tmpfs..."
+    BUILD_OUTPUT_DIR=/tmp just generate-bootable-image-local {{variant}} {{filesystem}} /tmp {{size}}
+    echo "Moving to output directory..."
+    mkdir -p {{output_dir}}
+    mv /tmp/skorionos-{{variant}}.img {{output_dir}}/
+    echo "✅ Fast build complete: {{output_dir}}/skorionos-{{variant}}.img"
 
 # Run VM with generated image
 run-vm image="output/skorionos-bootc.img":
@@ -94,7 +144,7 @@ run-vm image="output/skorionos-bootc.img":
 # Test build in container
 test-build:
     @echo "Running test build..."
-    podman build \
+    sudo podman build \
         -f Containerfile.base \
         -t {{image_name}}:test \
         --target test \
@@ -103,8 +153,8 @@ test-build:
 # Push image to registry
 push variant="kde" tag="{{image_tag}}":
     @echo "Pushing {{variant}} variant to registry..."
-    podman tag {{image_name}}:{{variant}}-{{image_tag}} {{registry}}/{{image_name}}:{{variant}}-{{tag}}
-    podman push {{registry}}/{{image_name}}:{{variant}}-{{tag}}
+    sudo podman tag {{image_name}}:{{variant}}-{{image_tag}} {{registry}}/{{image_name}}:{{variant}}-{{tag}}
+    sudo podman push {{registry}}/{{image_name}}:{{variant}}-{{tag}}
 
 # Push all variants
 push-all tag="{{image_tag}}":
@@ -116,33 +166,33 @@ push-all tag="{{image_tag}}":
 clean:
     @echo "Cleaning build artifacts..."
     rm -rf {{output_dir}}/*
-    podman image prune -f
+    sudo podman image prune -f
 
 # Deep clean (including containers and cache)
 clean-all:
     @echo "Deep cleaning all containers and cache..."
-    podman system prune -a -f
+    sudo podman system prune -a -f
     rm -rf {{output_dir}}
 
 # Show image information
 info variant="kde":
     @echo "Image information for {{variant}} variant:"
-    podman images {{image_name}}:{{variant}}-{{image_tag}}
+    sudo podman images {{image_name}}:{{variant}}-{{image_tag}}
     @echo ""
     @echo "Image layers:"
-    podman inspect {{image_name}}:{{variant}}-{{image_tag}} | jq '.[0].RootFS.Layers'
+    sudo podman inspect {{image_name}}:{{variant}}-{{image_tag}} | jq '.[0].RootFS.Layers'
 
 # Export image for debugging
 export variant="kde":
     @echo "Exporting {{variant}} image..."
     mkdir -p {{output_dir}}/export
-    podman save {{image_name}}:{{variant}}-{{image_tag}} -o {{output_dir}}/export/{{variant}}.tar
+    sudo podman save {{image_name}}:{{variant}}-{{image_tag}} -o {{output_dir}}/export/{{variant}}.tar
     @echo "Exported to {{output_dir}}/export/{{variant}}.tar"
 
 # Shell into image for debugging
 shell variant="kde":
     @echo "Starting shell in {{variant}} image..."
-    podman run -it --rm {{image_name}}:{{variant}}-{{image_tag}} /bin/bash
+    sudo podman run -it --rm {{image_name}}:{{variant}}-{{image_tag}} /bin/bash
 
 # Lint Containerfiles
 lint:
@@ -152,12 +202,12 @@ lint:
 # Check package updates
 check-updates:
     @echo "Checking for package updates..."
-    podman run --rm {{image_name}}:base-{{image_tag}} pacman -Qu || echo "No updates available"
+    sudo podman run --rm {{image_name}}:base-{{image_tag}} pacman -Qu || echo "No updates available"
 
 # Show disk usage
 disk-usage:
     @echo "Container storage usage:"
-    podman system df
+    sudo podman system df
 
 # Development: quick rebuild and test
 dev variant="kde":

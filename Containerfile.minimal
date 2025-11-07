@@ -34,6 +34,13 @@ RUN echo "" >> /etc/pacman.conf && \
     btrfs-progs \
     e2fsprogs \
     xfsprogs \
+    dosfstools \
+    skopeo \
+    dbus \
+    dbus-glib \
+    glib2 \
+    podman \
+    fuse-overlayfs \
     shadow \
     && \
     pacman -Scc --noconfirm && \
@@ -63,10 +70,24 @@ RUN rm -rf /boot /home /root /usr/local /srv && \
 # Update useradd default to /var/home instead of /home for User Creation
 RUN sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd"
 
+# Install bootupd GRUB metadata and systemd unit (missing from Arch package)
+RUN --mount=type=tmpfs,dst=/tmp cd /tmp && \
+    git clone --depth 1 --branch sdboot-support https://github.com/p5/coreos-bootupd.git && \
+    cd coreos-bootupd && \
+    install -m 644 -D -t /usr/lib/bootupd/grub2-static src/grub2/*.cfg && \
+    install -m 644 -D -t /usr/lib/bootupd/grub2-static/configs.d src/grub2/configs.d/*.cfg && \
+    install -m 644 -D -t /usr/lib/systemd/system systemd/bootloader-update.service
+
 # Necessary for `bootc install`
 RUN mkdir -p /usr/lib/ostree && \
     printf  "[composefs]\nenabled = yes\n[sysroot]\nreadonly = true\n" | \
     tee "/usr/lib/ostree/prepare-root.conf"
 
-# Only lint on native platform
+# Necessary label for bootc to recognize this as a bootable image
+LABEL containers.bootc 1
+
+# Setup machine-id for systemd
+RUN systemd-machine-id-setup
+
+# Validate bootc image (native platform only)
 RUN if [ "$(uname -m)" = "x86_64" ]; then bootc container lint || true; fi

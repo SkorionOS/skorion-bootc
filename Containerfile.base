@@ -446,38 +446,11 @@ RUN source /tmp/build-functions.sh && setup_user
 COPY rootfs/ /
 
 # ==============================================================================
-# Enable system services
+# Enable services
 # ==============================================================================
-RUN systemctl enable \
-        NetworkManager \
-        avahi-daemon \
-        bluetooth \
-        bluetooth-workaround \
-        fstrim.timer \
-        haveged \
-        sddm \
-        sshd \
-        swapfile \
-        systemd-timesyncd \
-        networkd-dispatcher \
-        inputplumber \
-        powerstation \
-        steamos-manager \
-        scx_loader \
-        sk-chos-daemon \
-        sk-chos-tool-autoupdate.timer
-
-# ==============================================================================
-# Enable user services
-# ==============================================================================
-RUN systemctl --global enable \
-        pipewire \
-        podman \
-        sk-chos-user-daemon \
-        sk-first-setup-daemon \
-        sk-audio-setup \
-        steamosctl-sleep \
-        monitor-waydroid
+RUN source /tmp/manifest && \
+    systemctl enable ${SERVICES} && \
+    systemctl --global enable ${USER_SERVICES}
 
 # ==============================================================================
 # SDDM configuration for gaming session (changes occasionally)

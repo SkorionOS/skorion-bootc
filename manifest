@@ -49,21 +49,16 @@ export AUR_PACKAGES_FILE_TO_DELETE="\
 export SERVICES="\
 	NetworkManager \
 	avahi-daemon \
-	auto-expand-home \
 	bluetooth \
 	bluetooth-workaround \
 	cec-onboot \
 	cec-onpoweroff \
 	cec-onsleep \
 	fstrim.timer \
-	frzr_root-swap-swapfile.swap \
 	haveged \
 	hostname-fix \
 	inputplumber \
 	networkd-dispatcher \
-	overlay-backgrounds \
-	overlay-fonts \
-	overlay-root-home \
 	powerstation \
 	scx_loader \
 	sddm \
@@ -71,7 +66,6 @@ export SERVICES="\
 	sshd \
 	systemd-timesyncd \
 	swapfile \
-	sk-bind-mount \
 	sk-chos-daemon \
 	sk-chos-tool-autoupdate.timer \
 	sk-setup-kernel-options \

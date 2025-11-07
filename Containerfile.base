@@ -421,7 +421,6 @@ RUN source /tmp/build-functions.sh && \
     skorionos-fastfetch-logo \
     steam-launch-manager \
     steam-removable-media-git \
-    steam_notif_daemon \
     steamos-manager \
     steamos-powerbuttond \
     sx \
